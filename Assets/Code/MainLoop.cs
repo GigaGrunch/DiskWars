@@ -8,6 +8,7 @@ namespace DiskWars
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
 
+        private readonly List<Disk> _disks = new List<Disk>();
         private readonly Dictionary<int, Disk> _diskByID = new Dictionary<int, Disk>();
         private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
         private readonly Dictionary<GameObject, int> _idByActor = new Dictionary<GameObject, int>();
@@ -63,6 +64,8 @@ namespace DiskWars
                 else
                 {
                     actor.transform.position = targetLocation;
+                    selectedDisk.Position = new Vector2(targetLocation.x, targetLocation.z);
+                    Debug.Log($"overlaps: {OverlapsAny(selectedDisk)}");
                 }
             }
         }
@@ -88,9 +91,32 @@ namespace DiskWars
             Texture2D texture = textureLookup[json.texture];
             actor.GetComponent<Renderer>().material.mainTexture = texture;
 
+            _disks.Add(disk);
             _diskByID.Add(disk.ID, disk);
             _idByActor.Add(actor, disk.ID);
             _actorByID.Add(disk.ID, actor);
+        }
+
+        private bool OverlapsAny(Disk disk)
+        {
+            foreach (Disk other in _disks)
+            {
+                if (disk.ID == other.ID)
+                {
+                    continue;
+                }
+
+                float sqrDistance = Vector2.SqrMagnitude(disk.Position - other.Position);
+                float minSqrDistance = Mathf.Pow(disk.Diameter / 2f + other.Diameter / 2f, 2f);
+                bool horizontalOverlap = sqrDistance < minSqrDistance;
+
+                if (horizontalOverlap)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
     }
 }
