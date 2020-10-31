@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace DiskWars
 {
-    public class MainLoop : MonoBehaviour
+    public class EntryPoint : MonoBehaviour
     {
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
@@ -58,7 +58,7 @@ namespace DiskWars
                 Vector3 targetLocation = diskLocation + movement;
                 targetLocation.y = Disk.THICKNESS / 2f;
 
-                while (OverlapsAny(selectedDisk, targetLocation))
+                while (HasCollisions(selectedDisk, targetLocation))
                 {
                     targetLocation.y += Disk.THICKNESS;
                 }
@@ -101,7 +101,7 @@ namespace DiskWars
                 Position = new Vector3(0f, Disk.THICKNESS / 2f, 0f)
             };
 
-            while (OverlapsAny(disk, disk.Position))
+            while (HasCollisions(disk, disk.Position))
             {
                 disk.Position.y += Disk.THICKNESS;
             }
@@ -124,7 +124,7 @@ namespace DiskWars
             _actorByID.Add(disk.ID, actor);
         }
 
-        private bool OverlapsAny(Disk disk, Vector3 overridePosition)
+        private bool HasCollisions(Disk disk, Vector3 overridePosition)
         {
             foreach (Disk other in _disks)
             {

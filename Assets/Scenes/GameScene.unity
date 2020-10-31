@@ -134,7 +134,7 @@ GameObject:
   - component: {fileID: 35299293}
   - component: {fileID: 35299292}
   m_Layer: 0
-  m_Name: MainLoop
+  m_Name: EntryPoint
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0

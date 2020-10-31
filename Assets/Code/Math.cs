@@ -9,13 +9,13 @@ namespace DiskWars
         public static float SquaredHorizontalDistance(Vector3 a, Vector3 b)
         {
             Vector3 diff = a - b;
-            return Math.Square(diff.x) + Math.Square(diff.z);
+            return Square(diff.x) + Square(diff.z);
         }
 
         public static float SquaredVerticalDistance(Vector3 a, Vector3 b)
         {
             Vector3 diff = a - b;
-            return Math.Square(diff.y);
+            return Square(diff.y);
         }
     }
 }
