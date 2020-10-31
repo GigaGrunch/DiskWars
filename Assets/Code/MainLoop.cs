@@ -17,6 +17,10 @@ namespace DiskWars
                 Disk disk = diskTemplate;
                 disk.GameObject = Instantiate(_diskPrefab);
                 disk.GameObject.name = disk.Name;
+                disk.GameObject.transform.localScale = new Vector3(
+                    disk.Diameter,
+                    disk.GameObject.transform.localScale.y,
+                    disk.Diameter);
                 _disks.Add(disk);
             }
         }

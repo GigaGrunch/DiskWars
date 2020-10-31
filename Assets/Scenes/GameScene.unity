@@ -152,7 +152,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 2b5b15cf5f9c45f1b4286206fd084746, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  _diskPrefab: {fileID: 0}
+  _diskPrefab: {fileID: 2120989461255103848, guid: 2c93da0d5abd9014a8592485b61dde8e, type: 3}
 --- !u!4 &35299293
 Transform:
   m_ObjectHideFlags: 0
