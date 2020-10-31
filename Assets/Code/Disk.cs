@@ -2,7 +2,7 @@
 {
     public struct Disk
     {
-        public int Index;
+        public int ID;
         public string Name;
         public float Diameter;
     }

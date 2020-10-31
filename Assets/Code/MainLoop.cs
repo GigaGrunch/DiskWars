@@ -7,12 +7,12 @@ namespace DiskWars
     {
         [SerializeField] private GameObject _diskPrefab;
 
-        private readonly Dictionary<int, Disk> _diskByIndex = new Dictionary<int, Disk>();
-        private readonly Dictionary<int, GameObject> _actorByIndex = new Dictionary<int, GameObject>();
-        private readonly Dictionary<GameObject, int> _indexByActor = new Dictionary<GameObject, int>();
+        private readonly Dictionary<int, Disk> _diskByID = new Dictionary<int, Disk>();
+        private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
+        private readonly Dictionary<GameObject, int> _idByActor = new Dictionary<GameObject, int>();
 
-        private int _nextDiskIndex;
-        private int _selectedDiskIndex;
+        private int _nextDiskID;
+        private int _selectedDiskID;
 
         private void Start()
         {
@@ -33,11 +33,11 @@ namespace DiskWars
                 {
                     if (hit.collider.CompareTag("Disk"))
                     {
-                        _selectedDiskIndex = _indexByActor[hit.collider.gameObject];
+                        _selectedDiskID = _idByActor[hit.collider.gameObject];
                     }
                     else
                     {
-                        Disk selectedDisk = _diskByIndex[_selectedDiskIndex];
+                        Disk selectedDisk = _diskByID[_selectedDiskID];
                         Vector3 clickPoint = hit.point;
                         MoveDisk(selectedDisk, clickPoint);
                     }
@@ -49,7 +49,7 @@ namespace DiskWars
         {
             Disk disk = new Disk
             {
-                Index = _nextDiskIndex++,
+                ID = _nextDiskID++,
                 Name = json.name,
                 Diameter = json.diameter,
             };
@@ -66,14 +66,14 @@ namespace DiskWars
             Texture2D texture = textureLookup[json.texture];
             actor.GetComponent<Renderer>().material.mainTexture = texture;
 
-            _diskByIndex.Add(disk.Index, disk);
-            _indexByActor.Add(actor, disk.Index);
-            _actorByIndex.Add(disk.Index, actor);
+            _diskByID.Add(disk.ID, disk);
+            _idByActor.Add(actor, disk.ID);
+            _actorByID.Add(disk.ID, actor);
         }
 
         private void MoveDisk(Disk disk, Vector3 targetPoint)
         {
-            GameObject actor = _actorByIndex[disk.Index];
+            GameObject actor = _actorByID[disk.ID];
             targetPoint.y = actor.transform.position.y;
 
             Vector3 diskLocation = actor.transform.position;
