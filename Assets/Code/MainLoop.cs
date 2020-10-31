@@ -63,20 +63,20 @@ namespace DiskWars
                     _selectedDiskID = _idByActor[diskActor];
                     _diskGhost.transform.localScale = diskActor.transform.localScale;
                 }
-                else
+            }
+            else if (Input.GetMouseButtonDown(1))
+            {
+                selectedDisk.Position.x = targetLocation.x;
+                selectedDisk.Position.y = Disk.THICKNESS / 2f;
+                selectedDisk.Position.z = targetLocation.z;
+
+                while (OverlapsAny(selectedDisk))
                 {
-                    selectedDisk.Position.x = targetLocation.x;
-                    selectedDisk.Position.y = Disk.THICKNESS / 2f;
-                    selectedDisk.Position.z = targetLocation.z;
-
-                    while (OverlapsAny(selectedDisk))
-                    {
-                        selectedDisk.Position.y += Disk.THICKNESS;
-                    }
-
-                    GameObject actor = _actorByID[selectedDisk.ID];
-                    actor.transform.position = selectedDisk.Position;
+                    selectedDisk.Position.y += Disk.THICKNESS;
                 }
+
+                GameObject actor = _actorByID[selectedDisk.ID];
+                actor.transform.position = selectedDisk.Position;
             }
         }
 
