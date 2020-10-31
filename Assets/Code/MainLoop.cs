@@ -15,12 +15,17 @@ namespace DiskWars
             foreach (Disk diskTemplate in diskTemplates)
             {
                 Disk disk = diskTemplate;
+
                 disk.GameObject = Instantiate(_diskPrefab);
                 disk.GameObject.name = disk.Name;
+
                 disk.GameObject.transform.localScale = new Vector3(
                     disk.Diameter,
                     disk.GameObject.transform.localScale.y,
                     disk.Diameter);
+
+                disk.GameObject.GetComponent<Renderer>().material.mainTexture = disk.Texture;
+
                 _disks.Add(disk);
             }
         }

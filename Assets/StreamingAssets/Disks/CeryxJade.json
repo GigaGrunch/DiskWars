@@ -1,5 +1,5 @@
 {
-	"Name": "Ceryx Jade",
-	"Diameter": 1,
-	"Texture": "CeryxJade.png"
+	"name": "Ceryx Jade",
+	"diameter": 1,
+	"texture": "CeryxJade.png"
 }
