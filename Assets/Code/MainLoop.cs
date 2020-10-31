@@ -28,9 +28,11 @@ namespace DiskWars
                 SpawnDisk(diskJson, textureLookup);
             }
 
+            _selectedDiskID = _nextDiskID - 1;
+
             _camera = Camera.main;
             _diskGhost = Instantiate(_diskGhostPrefab);
-            _diskGhost.transform.localScale = _actorByID[0].transform.localScale;
+            _diskGhost.transform.localScale = _actorByID[_selectedDiskID].transform.localScale;
         }
 
         private void Update()
