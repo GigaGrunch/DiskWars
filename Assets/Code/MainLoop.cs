@@ -1,6 +1,5 @@
-﻿using System;
+﻿using System.Linq;
 using System.Collections.Generic;
-using System.Linq;
 using UnityEngine;
 
 namespace DiskWars
@@ -10,7 +9,7 @@ namespace DiskWars
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
 
-        private readonly Disk[] _disks = new Disk[1024];
+        private readonly List<Disk> _disks = new List<Disk>();
         private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
         private readonly Dictionary<GameObject, int> _idByActor = new Dictionary<GameObject, int>();
 
@@ -36,7 +35,7 @@ namespace DiskWars
 
         private void Update()
         {
-            ref Disk selectedDisk = ref DiskByID(_selectedDiskID);
+            Disk selectedDisk = _disks.First(d => d.ID == _selectedDiskID);
 
             Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
             if (Physics.Raycast(mouseRay, out RaycastHit hit) == false)
@@ -68,12 +67,6 @@ namespace DiskWars
                     actor.transform.position = targetLocation;
                     selectedDisk.Position.X = targetLocation.x;
                     selectedDisk.Position.Z = targetLocation.z;
-                    Debug.Log($"overlaps: {OverlapsAny(selectedDisk)}");
-
-                    for (int i = 0; i < _nextDiskID; i++)
-                    {
-                        Debug.Log($"disk at {_disks[i].Position.X}, {_disks[i].Position.Z}");
-                    }
                 }
             }
         }
@@ -99,7 +92,7 @@ namespace DiskWars
             Texture2D texture = textureLookup[json.texture];
             actor.GetComponent<Renderer>().material.mainTexture = texture;
 
-            _disks[disk.ID] = disk;
+            _disks.Add(disk);
             _idByActor.Add(actor, disk.ID);
             _actorByID.Add(disk.ID, actor);
         }
@@ -124,21 +117,6 @@ namespace DiskWars
             }
 
             return false;
-        }
-
-        private ref Disk DiskByID(int id)
-        {
-            for (int i = 0; i < _disks.Length; i++)
-            {
-                ref Disk disk = ref _disks[i];
-
-                if (disk.ID == id)
-                {
-                    return ref disk;
-                }
-            }
-
-            throw new InvalidOperationException();
         }
     }
 }

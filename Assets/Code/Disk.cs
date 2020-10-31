@@ -1,6 +1,6 @@
 ﻿namespace DiskWars
 {
-    public struct Disk
+    public class Disk
     {
         public int ID;
         public string Name;
