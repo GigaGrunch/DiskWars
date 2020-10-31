@@ -153,6 +153,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   _diskPrefab: {fileID: 2120989461255103848, guid: 2c93da0d5abd9014a8592485b61dde8e, type: 3}
+  _diskGhostPrefab: {fileID: 2120989461255103848, guid: 02f0cbfc26d6245478d80005f5a08ddc, type: 3}
 --- !u!4 &35299293
 Transform:
   m_ObjectHideFlags: 0

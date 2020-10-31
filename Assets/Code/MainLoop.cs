@@ -6,6 +6,7 @@ namespace DiskWars
     public class MainLoop : MonoBehaviour
     {
         [SerializeField] private GameObject _diskPrefab;
+        [SerializeField] private GameObject _diskGhostPrefab;
 
         private readonly Dictionary<int, Disk> _diskByID = new Dictionary<int, Disk>();
         private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
@@ -13,6 +14,8 @@ namespace DiskWars
 
         private int _nextDiskID;
         private int _selectedDiskID;
+
+        private GameObject _diskGhost;
 
         private void Start()
         {
@@ -22,6 +25,9 @@ namespace DiskWars
             {
                 SpawnDisk(diskJson, textureLookup);
             }
+
+            _diskGhost = Instantiate(_diskGhostPrefab);
+            _diskGhost.transform.localScale *= 0f;
         }
 
         private void Update()
@@ -33,7 +39,9 @@ namespace DiskWars
                 {
                     if (hit.collider.CompareTag("Disk"))
                     {
-                        _selectedDiskID = _idByActor[hit.collider.gameObject];
+                        GameObject diskActor = hit.collider.gameObject;
+                        _selectedDiskID = _idByActor[diskActor];
+                        _diskGhost.transform.localScale = diskActor.transform.localScale;
                     }
                     else
                     {
