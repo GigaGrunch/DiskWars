@@ -28,21 +28,26 @@ namespace DiskWars
                 SpawnDisk(diskJson, textureLookup);
             }
 
-            _selectedDiskID = _nextDiskID - 1;
+            _selectedDiskID = -1;
 
             _camera = Camera.main;
             _diskGhost = Instantiate(_diskGhostPrefab);
-            _diskGhost.transform.localScale = _actorByID[_selectedDiskID].transform.localScale;
+            _diskGhost.transform.localScale = Vector3.zero;
         }
 
         private void Update()
         {
-            Disk selectedDisk = _disks.First(d => d.ID == _selectedDiskID);
+            Disk selectedDisk = null;
+
+            if (_selectedDiskID >= 0)
+            {
+                selectedDisk = _disks.First(d => d.ID == _selectedDiskID);
+            }
 
             Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
             bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
 
-            if (hitSomething)
+            if (hitSomething && selectedDisk != null)
             {
                 Vector3 mousePosition = hit.point;
                 Vector3 targetPoint = mousePosition;
@@ -63,18 +68,26 @@ namespace DiskWars
                     _selectedDiskID = _idByActor[diskActor];
                     _diskGhost.transform.localScale = diskActor.transform.localScale;
                 }
+                else
+                {
+                    _selectedDiskID = -1;
+                    _diskGhost.transform.localScale = Vector3.zero;
+                }
             }
             else if (Input.GetMouseButtonDown(1))
             {
-                selectedDisk.Position = _diskGhost.transform.position;
-
-                while (OverlapsAny(selectedDisk))
+                if (selectedDisk != null)
                 {
-                    selectedDisk.Position.y += Disk.THICKNESS;
-                }
+                    selectedDisk.Position = _diskGhost.transform.position;
 
-                GameObject actor = _actorByID[selectedDisk.ID];
-                actor.transform.position = selectedDisk.Position;
+                    while (OverlapsAny(selectedDisk))
+                    {
+                        selectedDisk.Position.y += Disk.THICKNESS;
+                    }
+
+                    GameObject actor = _actorByID[selectedDisk.ID];
+                    actor.transform.position = selectedDisk.Position;
+                }
             }
         }
 
