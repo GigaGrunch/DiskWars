@@ -40,24 +40,24 @@ namespace DiskWars
             Disk selectedDisk = _disks.First(d => d.ID == _selectedDiskID);
 
             Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
-            if (Physics.Raycast(mouseRay, out RaycastHit hit) == false)
+            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
+
+            if (hitSomething)
             {
-                return;
+                Vector3 mousePosition = hit.point;
+                Vector3 targetPoint = mousePosition;
+                targetPoint.y = selectedDisk.Position.y;
+                Vector3 diskLocation = selectedDisk.Position;
+                Vector3 direction = targetPoint - diskLocation;
+                Vector3 movement = direction.normalized * selectedDisk.Diameter;
+                Vector3 targetLocation = diskLocation + movement;
+                targetLocation.y = Disk.THICKNESS / 2f;
+                _diskGhost.transform.position = targetLocation;
             }
 
-            Vector3 mousePosition = hit.point;
-            Vector3 targetPoint = mousePosition;
-            targetPoint.y = selectedDisk.Position.y;
-            Vector3 diskLocation = selectedDisk.Position;
-            Vector3 direction = targetPoint - diskLocation;
-            Vector3 movement = direction.normalized * selectedDisk.Diameter;
-            Vector3 targetLocation = diskLocation + movement;
-
-            _diskGhost.transform.position = targetLocation;
-
-            if (Input.GetMouseButtonDown(0))
+            if (Input.GetMouseButton(0))
             {
-                if (hit.collider.CompareTag("Disk"))
+                if (hitSomething && hit.collider.CompareTag("Disk"))
                 {
                     GameObject diskActor = hit.collider.gameObject;
                     _selectedDiskID = _idByActor[diskActor];
@@ -66,9 +66,7 @@ namespace DiskWars
             }
             else if (Input.GetMouseButtonDown(1))
             {
-                selectedDisk.Position.x = targetLocation.x;
-                selectedDisk.Position.y = Disk.THICKNESS / 2f;
-                selectedDisk.Position.z = targetLocation.z;
+                selectedDisk.Position = _diskGhost.transform.position;
 
                 while (OverlapsAny(selectedDisk))
                 {
