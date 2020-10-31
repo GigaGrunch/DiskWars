@@ -57,6 +57,12 @@ namespace DiskWars
                 Vector3 movement = direction.normalized * selectedDisk.Diameter;
                 Vector3 targetLocation = diskLocation + movement;
                 targetLocation.y = Disk.THICKNESS / 2f;
+
+                while (OverlapsAny(selectedDisk, targetLocation))
+                {
+                    targetLocation.y += Disk.THICKNESS;
+                }
+
                 _diskGhost.transform.position = targetLocation;
             }
 
@@ -79,12 +85,6 @@ namespace DiskWars
                 if (selectedDisk != null)
                 {
                     selectedDisk.Position = _diskGhost.transform.position;
-
-                    while (OverlapsAny(selectedDisk))
-                    {
-                        selectedDisk.Position.y += Disk.THICKNESS;
-                    }
-
                     GameObject actor = _actorByID[selectedDisk.ID];
                     actor.transform.position = selectedDisk.Position;
                 }
@@ -101,7 +101,7 @@ namespace DiskWars
                 Position = new Vector3(0f, Disk.THICKNESS / 2f, 0f)
             };
 
-            while (OverlapsAny(disk))
+            while (OverlapsAny(disk, disk.Position))
             {
                 disk.Position.y += Disk.THICKNESS;
             }
@@ -124,7 +124,7 @@ namespace DiskWars
             _actorByID.Add(disk.ID, actor);
         }
 
-        private bool OverlapsAny(Disk disk)
+        private bool OverlapsAny(Disk disk, Vector3 overridePosition)
         {
             foreach (Disk other in _disks)
             {
@@ -133,7 +133,7 @@ namespace DiskWars
                     continue;
                 }
                 {
-                    float sqrDistance = Math.SquaredHorizontalDistance(disk.Position, other.Position);
+                    float sqrDistance = Math.SquaredHorizontalDistance(overridePosition, other.Position);
                     float minSqrDistance = Math.Square(disk.Diameter / 2f + other.Diameter / 2f);
                     bool horizontalOverlap = sqrDistance < minSqrDistance;
                     if (horizontalOverlap == false)
@@ -142,7 +142,7 @@ namespace DiskWars
                     }
                 }
                 {
-                    float sqrDistance = Math.SquaredVerticalDistance(disk.Position, other.Position);
+                    float sqrDistance = Math.SquaredVerticalDistance(overridePosition, other.Position);
                     float minSqrDistance = Math.Square(Disk.THICKNESS);
 
                     bool verticalOverlap = sqrDistance < minSqrDistance;
