@@ -16,8 +16,8 @@ namespace DiskWars
 
         private void Start()
         {
-            DiskJson[] diskJsons = JsonLoader.LoadDisks();
-            Dictionary<string, Texture2D> textureLookup = JsonLoader.LoadTextures();
+            DiskJson[] diskJsons = AssetLoading.LoadDisks();
+            Dictionary<string, Texture2D> textureLookup = AssetLoading.LoadTextures();
             foreach (DiskJson diskJson in diskJsons)
             {
                 SpawnDisk(diskJson, textureLookup);

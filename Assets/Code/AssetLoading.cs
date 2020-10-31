@@ -4,7 +4,7 @@ using UnityEngine;
 
 namespace DiskWars
 {
-    public static class JsonLoader
+    public static class AssetLoading
     {
         public static DiskJson[] LoadDisks()
         {
