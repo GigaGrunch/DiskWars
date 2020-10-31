@@ -45,9 +45,8 @@ namespace DiskWars
 
             Vector3 mousePosition = hit.point;
             Vector3 targetPoint = mousePosition;
-            GameObject actor = _actorByID[selectedDisk.ID];
-            targetPoint.y = actor.transform.position.y;
-            Vector3 diskLocation = actor.transform.position;
+            targetPoint.y = selectedDisk.Position.y;
+            Vector3 diskLocation = selectedDisk.Position;
             Vector3 direction = targetPoint - diskLocation;
             Vector3 movement = direction.normalized * selectedDisk.Diameter;
             Vector3 targetLocation = diskLocation + movement;
@@ -64,9 +63,17 @@ namespace DiskWars
                 }
                 else
                 {
-                    actor.transform.position = targetLocation;
-                    selectedDisk.Position.X = targetLocation.x;
-                    selectedDisk.Position.Z = targetLocation.z;
+                    selectedDisk.Position.x = targetLocation.x;
+                    selectedDisk.Position.y = Disk.THICKNESS / 2f;
+                    selectedDisk.Position.z = targetLocation.z;
+
+                    while (OverlapsAny(selectedDisk))
+                    {
+                        selectedDisk.Position.y += Disk.THICKNESS;
+                    }
+
+                    GameObject actor = _actorByID[selectedDisk.ID];
+                    actor.transform.position = selectedDisk.Position;
                 }
             }
         }
@@ -78,15 +85,17 @@ namespace DiskWars
                 ID = _nextDiskID++,
                 Name = json.name,
                 Diameter = json.diameter,
+                Position = new Vector3(0f, Disk.THICKNESS / 2f, 0f)
             };
 
             GameObject actor = Instantiate(_diskPrefab);
 
             actor.name = disk.Name;
+            actor.transform.position = disk.Position;
 
             actor.transform.localScale = new Vector3(
                 disk.Diameter,
-                actor.transform.localScale.y,
+                Disk.THICKNESS / 2f,
                 disk.Diameter);
 
             Texture2D texture = textureLookup[json.texture];
@@ -105,15 +114,27 @@ namespace DiskWars
                 {
                     continue;
                 }
-
-                float sqrDistance = Position.SquareDistance(disk.Position, other.Position);
-                float minSqrDistance = Mathf.Pow(disk.Diameter / 2f + other.Diameter / 2f, 2f);
-                bool horizontalOverlap = sqrDistance < minSqrDistance;
-
-                if (horizontalOverlap)
                 {
-                    return true;
+                    float sqrDistance = Math.SquaredHorizontalDistance(disk.Position, other.Position);
+                    float minSqrDistance = Math.Square(disk.Diameter / 2f + other.Diameter / 2f);
+                    bool horizontalOverlap = sqrDistance < minSqrDistance;
+                    if (horizontalOverlap == false)
+                    {
+                        continue;
+                    }
                 }
+                {
+                    float sqrDistance = Math.SquaredVerticalDistance(disk.Position, other.Position);
+                    float minSqrDistance = Math.Square(Disk.THICKNESS);
+
+                    bool verticalOverlap = sqrDistance < minSqrDistance;
+                    if (verticalOverlap == false)
+                    {
+                        continue;
+                    }
+                }
+
+                return true;
             }
 
             return false;
