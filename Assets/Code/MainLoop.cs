@@ -64,7 +64,8 @@ namespace DiskWars
                 else
                 {
                     actor.transform.position = targetLocation;
-                    selectedDisk.Position = new Vector2(targetLocation.x, targetLocation.z);
+                    selectedDisk.Position.X = targetLocation.x;
+                    selectedDisk.Position.Y = targetLocation.z;
                     Debug.Log($"overlaps: {OverlapsAny(selectedDisk)}");
                 }
             }
@@ -106,7 +107,7 @@ namespace DiskWars
                     continue;
                 }
 
-                float sqrDistance = Vector2.SqrMagnitude(disk.Position - other.Position);
+                float sqrDistance = Position.SquareDistance(disk.Position, other.Position);
                 float minSqrDistance = Mathf.Pow(disk.Diameter / 2f + other.Diameter / 2f, 2f);
                 bool horizontalOverlap = sqrDistance < minSqrDistance;
 
