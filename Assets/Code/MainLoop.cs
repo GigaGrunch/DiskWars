@@ -16,6 +16,7 @@ namespace DiskWars
         private int _selectedDiskID;
 
         private GameObject _diskGhost;
+        private Camera _camera;
 
         private void Start()
         {
@@ -26,29 +27,42 @@ namespace DiskWars
                 SpawnDisk(diskJson, textureLookup);
             }
 
+            _camera = Camera.main;
             _diskGhost = Instantiate(_diskGhostPrefab);
-            _diskGhost.transform.localScale *= 0f;
+            _diskGhost.transform.localScale = _actorByID[0].transform.localScale;
         }
 
         private void Update()
         {
+            Disk selectedDisk = _diskByID[_selectedDiskID];
+            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
+            if (Physics.Raycast(mouseRay, out RaycastHit hit) == false)
+            {
+                return;
+            }
+
+            Vector3 mousePosition = hit.point;
+            Vector3 targetPoint = mousePosition;
+            GameObject actor = _actorByID[selectedDisk.ID];
+            targetPoint.y = actor.transform.position.y;
+            Vector3 diskLocation = actor.transform.position;
+            Vector3 direction = targetPoint - diskLocation;
+            Vector3 movement = direction.normalized * selectedDisk.Diameter;
+            Vector3 targetLocation = diskLocation + movement;
+
+            _diskGhost.transform.position = targetLocation;
+
             if (Input.GetMouseButtonDown(0))
             {
-                Ray clickRay = Camera.main.ScreenPointToRay(Input.mousePosition);
-                if (Physics.Raycast(clickRay, out RaycastHit hit))
+                if (hit.collider.CompareTag("Disk"))
                 {
-                    if (hit.collider.CompareTag("Disk"))
-                    {
-                        GameObject diskActor = hit.collider.gameObject;
-                        _selectedDiskID = _idByActor[diskActor];
-                        _diskGhost.transform.localScale = diskActor.transform.localScale;
-                    }
-                    else
-                    {
-                        Disk selectedDisk = _diskByID[_selectedDiskID];
-                        Vector3 clickPoint = hit.point;
-                        MoveDisk(selectedDisk, clickPoint);
-                    }
+                    GameObject diskActor = hit.collider.gameObject;
+                    _selectedDiskID = _idByActor[diskActor];
+                    _diskGhost.transform.localScale = diskActor.transform.localScale;
+                }
+                else
+                {
+                    actor.transform.position = targetLocation;
                 }
             }
         }
@@ -77,18 +91,6 @@ namespace DiskWars
             _diskByID.Add(disk.ID, disk);
             _idByActor.Add(actor, disk.ID);
             _actorByID.Add(disk.ID, actor);
-        }
-
-        private void MoveDisk(Disk disk, Vector3 targetPoint)
-        {
-            GameObject actor = _actorByID[disk.ID];
-            targetPoint.y = actor.transform.position.y;
-
-            Vector3 diskLocation = actor.transform.position;
-            Vector3 direction = targetPoint - diskLocation;
-            Vector3 movement = direction.normalized * disk.Diameter;
-            Vector3 targetLocation = diskLocation + movement;
-            actor.transform.position = targetLocation;
         }
     }
 }
