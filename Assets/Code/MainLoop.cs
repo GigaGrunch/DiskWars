@@ -88,6 +88,11 @@ namespace DiskWars
                 Position = new Vector3(0f, Disk.THICKNESS / 2f, 0f)
             };
 
+            while (OverlapsAny(disk))
+            {
+                disk.Position.y += Disk.THICKNESS;
+            }
+
             GameObject actor = Instantiate(_diskPrefab);
 
             actor.name = disk.Name;
