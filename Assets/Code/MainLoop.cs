@@ -1,15 +1,24 @@
-﻿using UnityEngine;
+﻿using System.Collections.Generic;
+using UnityEngine;
 
 namespace DiskWars
 {
     public class MainLoop : MonoBehaviour
     {
-        private Disk _disk;
+        [SerializeField] private GameObject _diskPrefab;
+
+        private readonly List<Disk> _disks = new List<Disk>();
 
         private void Start()
         {
-            _disk.Diameter = 1f;
-            _disk.GameObject = GameObject.Find("Disk");
+            Disk[] diskTemplates = DiskLoader.LoadAll();
+            foreach (Disk diskTemplate in diskTemplates)
+            {
+                Disk disk = diskTemplate;
+                disk.GameObject = Instantiate(_diskPrefab);
+                disk.GameObject.name = disk.Name;
+                _disks.Add(disk);
+            }
         }
 
         private void Update()
@@ -22,10 +31,10 @@ namespace DiskWars
                     Vector3 clickPoint = hit.point;
                     Vector3 randomPointOnFloor = new Vector3(
                         clickPoint.x,
-                        _disk.GameObject.transform.position.y,
+                        _disks[0].GameObject.transform.position.y,
                         clickPoint.z);
 
-                    _disk.MoveToward(randomPointOnFloor);
+                    _disks[0].MoveToward(randomPointOnFloor);
                 }
             }
         }
