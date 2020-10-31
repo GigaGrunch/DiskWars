@@ -1,28 +1,32 @@
-﻿using System.Collections;
-using UnityEngine;
+﻿using UnityEngine;
 
 namespace DiskWars
 {
     public class MainLoop : MonoBehaviour
     {
-        private IEnumerator Start()
+        private Disk _disk;
+
+        private void Start()
         {
-            Disk disk;
-            disk.Diameter = 1f;
-            disk.GameObject = GameObject.Find("Disk");
+            _disk.Diameter = 1f;
+            _disk.GameObject = GameObject.Find("Disk");
+        }
 
-            while (true)
+        private void Update()
+        {
+            if (Input.GetMouseButtonDown(0))
             {
-                yield return new WaitForSeconds(1f);
+                Ray clickRay = Camera.main.ScreenPointToRay(Input.mousePosition);
+                if (Physics.Raycast(clickRay, out RaycastHit hit))
+                {
+                    Vector3 clickPoint = hit.point;
+                    Vector3 randomPointOnFloor = new Vector3(
+                        clickPoint.x,
+                        _disk.GameObject.transform.position.y,
+                        clickPoint.z);
 
-                Vector2 randomPoint = Random.insideUnitCircle;
-                randomPoint *= 10f;
-                Vector3 randomPointOnFloor = new Vector3(
-                    randomPoint.x,
-                    disk.GameObject.transform.position.y,
-                    randomPoint.y);
-
-                disk.MoveToward(randomPointOnFloor);
+                    _disk.MoveToward(randomPointOnFloor);
+                }
             }
         }
     }
