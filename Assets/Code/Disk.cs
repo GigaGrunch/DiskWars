@@ -1,13 +1,10 @@
-﻿using UnityEngine;
-
-namespace DiskWars
+﻿namespace DiskWars
 {
     public struct Disk
     {
         public int Index;
         public string Name;
         public float Diameter;
-        public GameObject GameObject;
     }
 
     public struct DiskJson
