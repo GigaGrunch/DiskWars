@@ -14,10 +14,11 @@ namespace DiskWars
 
         private void Start()
         {
-            Disk[] diskTemplates = DiskLoader.LoadAll();
-            foreach (Disk diskTemplate in diskTemplates)
+            DiskJson[] diskJsons = JsonLoader.LoadDisks();
+            Dictionary<string, Texture2D> textureLookup = JsonLoader.LoadTextures();
+            foreach (DiskJson diskJson in diskJsons)
             {
-                SpawnDisk(diskTemplate);
+                SpawnDisk(diskJson, textureLookup);
             }
         }
 
@@ -47,13 +48,16 @@ namespace DiskWars
             }
         }
 
-        private void SpawnDisk(Disk template)
+        private void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup)
         {
-            Disk disk = template;
+            Disk disk = new Disk
+            {
+                Index = _nextDiskIndex++,
+                Name = json.name,
+                Diameter = json.diameter,
+                GameObject = Instantiate(_diskPrefab)
+            };
 
-            disk.Index = _nextDiskIndex++;
-
-            disk.GameObject = Instantiate(_diskPrefab);
             disk.GameObject.name = disk.Name;
 
             disk.GameObject.transform.localScale = new Vector3(
@@ -61,7 +65,8 @@ namespace DiskWars
                 disk.GameObject.transform.localScale.y,
                 disk.Diameter);
 
-            disk.GameObject.GetComponent<Renderer>().material.mainTexture = disk.Texture;
+            Texture2D texture = textureLookup[json.texture];
+            disk.GameObject.GetComponent<Renderer>().material.mainTexture = texture;
 
             _disks.Add(disk.Index, disk);
             _indexLookup.Add(disk.GameObject, disk.Index);

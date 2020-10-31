@@ -7,7 +7,6 @@ namespace DiskWars
         public int Index;
         public string Name;
         public float Diameter;
-        public Texture2D Texture;
         public GameObject GameObject;
     }
 
