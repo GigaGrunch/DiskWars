@@ -39,25 +39,35 @@ namespace DiskWars
 
         private IEnumerator Start()
         {
-            if (_networkMode == NetworkMode.Host)
+            switch (_networkMode)
             {
-                TcpListener server = new TcpListener(IPAddress.Loopback, 7777);
-                server.Start();
-
-                bool connected = false;
-                Thread connectThread = new Thread(() =>
+                case NetworkMode.None:
+                    break;
+                case NetworkMode.Host:
                 {
-                    TcpClient client = server.AcceptTcpClient();
-                    connected = true;
-                });
-                connectThread.Start();
+                    TcpListener server = new TcpListener(IPAddress.Loopback, 7777);
+                    server.Start();
 
-                while (connected == false)
+                    bool connected = false;
+                    Thread connectThread = new Thread(() =>
+                    {
+                        TcpClient client = server.AcceptTcpClient();
+                        connected = true;
+                    });
+                    connectThread.Start();
+
+                    while (connected == false)
+                    {
+                        yield return null;
+                    }
+
+                    Debug.Log("connected!");
+                } break;
+                case NetworkMode.Client:
                 {
-                    yield return null;
-                }
-
-                Debug.Log("connected!");
+                    TcpClient client = new TcpClient();
+                    client.Connect(IPAddress.Loopback, 7777);
+                } break;
             }
 
             DiskJson[] diskJsons = AssetLoading.LoadDisks();
