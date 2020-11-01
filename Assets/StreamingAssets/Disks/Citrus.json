@@ -1,5 +1,6 @@
 {
 	"name": "Citrus",
 	"diameter": 1.7,
-	"texture": "Citrus.png"
+	"texture": "Citrus.png",
+	"moves": 3
 }

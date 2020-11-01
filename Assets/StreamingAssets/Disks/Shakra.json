@@ -1,5 +1,6 @@
 {
 	"name": "Shakra",
 	"diameter": 1.7,
-	"texture": "Shakra.png"
+	"texture": "Shakra.png",
+	"moves": 3
 }

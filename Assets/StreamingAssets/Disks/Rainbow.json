@@ -1,5 +1,6 @@
 {
 	"name": "Rainbow",
 	"diameter": 2,
-	"texture": "Rainbow.png"
+	"texture": "Rainbow.png",
+	"moves": 3
 }

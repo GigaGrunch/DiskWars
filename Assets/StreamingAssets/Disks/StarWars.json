@@ -1,5 +1,6 @@
 {
 	"name": "Star Wars",
 	"diameter": 2,
-	"texture": "StarWars.png"
+	"texture": "StarWars.png",
+	"moves": 3
 }

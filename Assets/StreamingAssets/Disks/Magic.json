@@ -1,5 +1,6 @@
 {
 	"name": "Magic",
 	"diameter": 1.8,
-	"texture": "Magic.png"
+	"texture": "Magic.png",
+	"moves": 3
 }

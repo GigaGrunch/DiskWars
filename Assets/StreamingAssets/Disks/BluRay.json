@@ -1,5 +1,6 @@
 {
 	"name": "BluRay",
 	"diameter": 1.5,
-	"texture": "BluRay.png"
+	"texture": "BluRay.png",
+	"moves": 3
 }

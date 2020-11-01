@@ -10,6 +10,9 @@ namespace DiskWars
         public string Name;
         public float Diameter;
         public Vector3 Position;
+
+        public int MaxMoves;
+        public int RemainingMoves;
     }
 
     public struct DiskJson
@@ -17,5 +20,6 @@ namespace DiskWars
         public string name;
         public float diameter;
         public string texture;
+        public int moves;
     }
 }

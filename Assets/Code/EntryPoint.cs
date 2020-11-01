@@ -91,8 +91,9 @@ namespace DiskWars
             }
             else if (Input.GetMouseButtonDown(1))
             {
-                if (selectedDisk != null)
+                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
                 {
+                    selectedDisk.RemainingMoves -= 1;
                     selectedDisk.Position = _diskGhost.transform.position;
 
                     GameObject actor = _actorByID[selectedDisk.ID];
@@ -156,7 +157,9 @@ namespace DiskWars
                 ID = _nextDiskID++,
                 Name = json.name,
                 Diameter = json.diameter,
-                Position = position
+                Position = position,
+                MaxMoves = json.moves,
+                RemainingMoves = json.moves
             };
 
             while (HasCollisions(disk, disk.Position))
