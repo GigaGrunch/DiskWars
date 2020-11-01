@@ -2,6 +2,7 @@
 using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 namespace DiskWars
 {
@@ -9,8 +10,12 @@ namespace DiskWars
     {
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
+
         [SerializeField] private Transform _player1Spawn;
         [SerializeField] private Transform _player2Spawn;
+
+        [SerializeField] private Text _currentPlayerDisplay;
+        [SerializeField] private Button _endTurnButton;
 
         private readonly List<Disk> _disks = new List<Disk>();
         private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
@@ -21,6 +26,8 @@ namespace DiskWars
 
         private int _nextDiskID;
         private int _selectedDiskID;
+
+        private int _currentPlayer;
 
         private GameObject _diskGhost;
         private Camera _camera;
@@ -42,6 +49,10 @@ namespace DiskWars
             _camera = Camera.main;
             _diskGhost = Instantiate(_diskGhostPrefab);
             _diskGhost.transform.localScale = Vector3.zero;
+
+            _currentPlayer = 1;
+            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
+            _endTurnButton.onClick.AddListener(EndTurn);
         }
 
         private void Update()
@@ -123,6 +134,18 @@ namespace DiskWars
                 FlapAnimation flap = _flapQueue.Dequeue();
                 StartCoroutine(PerformFlap(flap));
             }
+        }
+
+        private void EndTurn()
+        {
+            _currentPlayer++;
+
+            if (_currentPlayer > 2)
+            {
+                _currentPlayer = 1;
+            }
+
+            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
         }
 
         private IEnumerator PerformFlap(FlapAnimation flap)
