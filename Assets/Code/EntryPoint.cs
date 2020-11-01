@@ -1,6 +1,9 @@
 ﻿using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
+using System.Net;
+using System.Net.Sockets;
+using System.Threading;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -8,6 +11,8 @@ namespace DiskWars
 {
     public class EntryPoint : MonoBehaviour
     {
+        [SerializeField] private NetworkMode _networkMode;
+
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
 
@@ -32,8 +37,29 @@ namespace DiskWars
         private GameObject _diskGhost;
         private Camera _camera;
 
-        private void Start()
+        private IEnumerator Start()
         {
+            if (_networkMode == NetworkMode.Host)
+            {
+                TcpListener server = new TcpListener(IPAddress.Loopback, 7777);
+                server.Start();
+
+                bool connected = false;
+                Thread connectThread = new Thread(() =>
+                {
+                    TcpClient client = server.AcceptTcpClient();
+                    connected = true;
+                });
+                connectThread.Start();
+
+                while (connected == false)
+                {
+                    yield return null;
+                }
+
+                Debug.Log("connected!");
+            }
+
             DiskJson[] diskJsons = AssetLoading.LoadDisks();
             Dictionary<string, Texture2D> textureLookup = AssetLoading.LoadTextures();
 
@@ -53,91 +79,93 @@ namespace DiskWars
             _currentPlayer = 1;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
             _endTurnButton.onClick.AddListener(EndTurn);
-        }
 
-        private void Update()
-        {
-            Disk selectedDisk = null;
-
-            if (_selectedDiskID >= 0)
+            while (true)
             {
-                selectedDisk = _disks[_selectedDiskID];
-            }
+                Disk selectedDisk = null;
 
-            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
-            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
-
-            if (hitSomething && selectedDisk != null)
-            {
-                Vector3 mousePosition = hit.point;
-                Vector3 targetPoint = mousePosition;
-                targetPoint.y = selectedDisk.Position.y;
-                Vector3 diskLocation = selectedDisk.Position;
-                Vector3 direction = targetPoint - diskLocation;
-                Vector3 movement = direction.normalized * selectedDisk.Diameter;
-                Vector3 targetLocation = diskLocation + movement;
-                targetLocation.y = Disk.THICKNESS / 2f;
-
-                while (HasCollisions(selectedDisk, targetLocation))
+                if (_selectedDiskID >= 0)
                 {
-                    targetLocation.y += Disk.THICKNESS;
+                    selectedDisk = _disks[_selectedDiskID];
                 }
 
-                _diskGhost.transform.position = targetLocation;
-            }
+                Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
+                bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
 
-            if (Input.GetMouseButton(0))
-            {
-                if (hitSomething && hit.collider.CompareTag("Disk"))
+                if (hitSomething && selectedDisk != null)
                 {
-                    GameObject diskActor = hit.collider.gameObject;
-                    int diskID = _idByActor[diskActor];
-                    Disk disk = _disks[diskID];
+                    Vector3 mousePosition = hit.point;
+                    Vector3 targetPoint = mousePosition;
+                    targetPoint.y = selectedDisk.Position.y;
+                    Vector3 diskLocation = selectedDisk.Position;
+                    Vector3 direction = targetPoint - diskLocation;
+                    Vector3 movement = direction.normalized * selectedDisk.Diameter;
+                    Vector3 targetLocation = diskLocation + movement;
+                    targetLocation.y = Disk.THICKNESS / 2f;
 
-                    if (disk.Player == _currentPlayer)
+                    while (HasCollisions(selectedDisk, targetLocation))
                     {
-                        _selectedDiskID = diskID;
-                        _diskGhost.transform.localScale = diskActor.transform.localScale;
+                        targetLocation.y += Disk.THICKNESS;
+                    }
 
-                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
-                        ghostColor.a = ghostMaterial.color.a;
-                        ghostMaterial.color = ghostColor;
+                    _diskGhost.transform.position = targetLocation;
+                }
+
+                if (Input.GetMouseButton(0))
+                {
+                    if (hitSomething && hit.collider.CompareTag("Disk"))
+                    {
+                        GameObject diskActor = hit.collider.gameObject;
+                        int diskID = _idByActor[diskActor];
+                        Disk disk = _disks[diskID];
+
+                        if (disk.Player == _currentPlayer)
+                        {
+                            _selectedDiskID = diskID;
+                            _diskGhost.transform.localScale = diskActor.transform.localScale;
+
+                            Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                            Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
+                            ghostColor.a = ghostMaterial.color.a;
+                            ghostMaterial.color = ghostColor;
+                        }
+                    }
+                    else
+                    {
+                        _selectedDiskID = -1;
+                        _diskGhost.transform.localScale = Vector3.zero;
                     }
                 }
-                else
+                else if (Input.GetMouseButtonDown(1))
                 {
-                    _selectedDiskID = -1;
-                    _diskGhost.transform.localScale = Vector3.zero;
-                }
-            }
-            else if (Input.GetMouseButtonDown(1))
-            {
-                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
-                {
-                    selectedDisk.RemainingMoves -= 1;
-                    selectedDisk.Position = _diskGhost.transform.position;
-
-                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
-                    ghostColor.a = ghostMaterial.color.a;
-                    ghostMaterial.color = ghostColor;
-
-                    GameObject actor = _actorByID[selectedDisk.ID];
-                    FlapAnimation flapAnimation = new FlapAnimation
+                    if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
                     {
-                        Actor = actor,
-                        TargetLocation = selectedDisk.Position
-                    };
+                        selectedDisk.RemainingMoves -= 1;
+                        selectedDisk.Position = _diskGhost.transform.position;
 
-                    _flapQueue.Enqueue(flapAnimation);
+                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                        Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                        ghostColor.a = ghostMaterial.color.a;
+                        ghostMaterial.color = ghostColor;
+
+                        GameObject actor = _actorByID[selectedDisk.ID];
+                        FlapAnimation flapAnimation = new FlapAnimation
+                        {
+                            Actor = actor,
+                            TargetLocation = selectedDisk.Position
+                        };
+
+                        _flapQueue.Enqueue(flapAnimation);
+                    }
                 }
-            }
 
-            if (_flapQueue.Any() && _currentFlap == null)
-            {
-                FlapAnimation flap = _flapQueue.Dequeue();
-                StartCoroutine(PerformFlap(flap));
+                if (_flapQueue.Any() && _currentFlap == null)
+                {
+                    FlapAnimation flap = _flapQueue.Dequeue();
+                    StartCoroutine(PerformFlap(flap));
+                }
+
+                yield return null;
             }
         }
 
@@ -264,6 +292,13 @@ namespace DiskWars
         {
             public GameObject Actor;
             public Vector3 TargetLocation;
+        }
+
+        private enum NetworkMode
+        {
+            None,
+            Host,
+            Client
         }
     }
 }
