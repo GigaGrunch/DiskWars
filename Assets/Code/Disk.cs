@@ -7,11 +7,12 @@ namespace DiskWars
         public const float THICKNESS = 0.02f;
 
         public int ID;
+        public int Player;
         public string Name;
         public float Diameter;
-        public Vector3 Position;
-
         public int MaxMoves;
+
+        public Vector3 Position;
         public int RemainingMoves;
     }
 
