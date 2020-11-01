@@ -81,7 +81,13 @@ namespace DiskWars
                 {
                     GameObject diskActor = hit.collider.gameObject;
                     _selectedDiskID = _idByActor[diskActor];
+                    selectedDisk = _disks.First(d => d.ID == _selectedDiskID);
                     _diskGhost.transform.localScale = diskActor.transform.localScale;
+
+                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                    ghostColor.a = ghostMaterial.color.a;
+                    ghostMaterial.color = ghostColor;
                 }
                 else
                 {
@@ -95,6 +101,11 @@ namespace DiskWars
                 {
                     selectedDisk.RemainingMoves -= 1;
                     selectedDisk.Position = _diskGhost.transform.position;
+
+                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                    ghostColor.a = ghostMaterial.color.a;
+                    ghostMaterial.color = ghostColor;
 
                     GameObject actor = _actorByID[selectedDisk.ID];
                     FlapAnimation flapAnimation = new FlapAnimation
