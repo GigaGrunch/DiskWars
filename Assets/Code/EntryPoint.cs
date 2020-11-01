@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections;
+using System.Linq;
 using System.Collections.Generic;
 using UnityEngine;
 
@@ -85,10 +86,25 @@ namespace DiskWars
                 if (selectedDisk != null)
                 {
                     selectedDisk.Position = _diskGhost.transform.position;
-                    GameObject actor = _actorByID[selectedDisk.ID];
-                    actor.transform.position = selectedDisk.Position;
+                    StartCoroutine(FlapAnimation(selectedDisk));
                 }
             }
+        }
+
+        private IEnumerator FlapAnimation(Disk disk)
+        {
+            GameObject actor = _actorByID[disk.ID];
+            Vector3 rotationPoint = Math.Between(actor.transform.position, disk.Position);
+            Vector3 direction = (disk.Position - actor.transform.position).normalized;
+            Vector3 rotationAxis = new Vector3(direction.z, 0f, -direction.x);
+
+            for (int i = 0; i < 90; i++)
+            {
+                actor.transform.RotateAround(point: rotationPoint, axis: rotationAxis, 2f);
+                yield return null;
+            }
+
+            actor.transform.position = disk.Position;
         }
 
         private void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup)
@@ -126,12 +142,8 @@ namespace DiskWars
 
         private bool HasCollisions(Disk disk, Vector3 overridePosition)
         {
-            foreach (Disk other in _disks)
+            foreach (Disk other in _disks.Where(other => disk.ID != other.ID))
             {
-                if (disk.ID == other.ID)
-                {
-                    continue;
-                }
                 {
                     float sqrDistance = Math.SquaredHorizontalDistance(overridePosition, other.Position);
                     float minSqrDistance = Math.Square(disk.Diameter / 2f + other.Diameter / 2f);
