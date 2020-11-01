@@ -14,6 +14,9 @@ namespace DiskWars
         private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
         private readonly Dictionary<GameObject, int> _idByActor = new Dictionary<GameObject, int>();
 
+        private FlapAnimation _currentFlap;
+        private readonly Queue<FlapAnimation> _flapQueue = new Queue<FlapAnimation>();
+
         private int _nextDiskID;
         private int _selectedDiskID;
 
@@ -86,16 +89,34 @@ namespace DiskWars
                 if (selectedDisk != null)
                 {
                     selectedDisk.Position = _diskGhost.transform.position;
-                    StartCoroutine(FlapAnimation(selectedDisk));
+
+                    GameObject actor = _actorByID[selectedDisk.ID];
+                    FlapAnimation flapAnimation = new FlapAnimation
+                    {
+                        Actor = actor,
+                        TargetLocation = selectedDisk.Position
+                    };
+
+                    _flapQueue.Enqueue(flapAnimation);
                 }
+            }
+
+            if (_flapQueue.Any() && _currentFlap == null)
+            {
+                FlapAnimation flap = _flapQueue.Dequeue();
+                StartCoroutine(PerformFlap(flap));
             }
         }
 
-        private IEnumerator FlapAnimation(Disk disk)
+        private IEnumerator PerformFlap(FlapAnimation flap)
         {
-            GameObject actor = _actorByID[disk.ID];
-            Vector3 rotationPoint = Math.Between(actor.transform.position, disk.Position);
-            Vector3 direction = (disk.Position - actor.transform.position).normalized;
+            _currentFlap = flap;
+
+            GameObject actor = flap.Actor;
+            Vector3 targetLocation = flap.TargetLocation;
+
+            Vector3 rotationPoint = Math.Between(actor.transform.position, targetLocation);
+            Vector3 direction = (targetLocation - actor.transform.position).normalized;
             Vector3 rotationAxis = new Vector3(direction.z, 0f, -direction.x);
 
             for (int i = 0; i < 90; i++)
@@ -104,7 +125,9 @@ namespace DiskWars
                 yield return null;
             }
 
-            actor.transform.position = disk.Position;
+            actor.transform.position = targetLocation;
+
+            _currentFlap = null;
         }
 
         private void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup)
@@ -168,6 +191,12 @@ namespace DiskWars
             }
 
             return false;
+        }
+
+        private class FlapAnimation
+        {
+            public GameObject Actor;
+            public Vector3 TargetLocation;
         }
     }
 }
