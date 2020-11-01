@@ -9,6 +9,8 @@ namespace DiskWars
     {
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
+        [SerializeField] private Transform _player1Spawn;
+        [SerializeField] private Transform _player2Spawn;
 
         private readonly List<Disk> _disks = new List<Disk>();
         private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
@@ -27,9 +29,12 @@ namespace DiskWars
         {
             DiskJson[] diskJsons = AssetLoading.LoadDisks();
             Dictionary<string, Texture2D> textureLookup = AssetLoading.LoadTextures();
+
+            bool player1 = true;
             foreach (DiskJson diskJson in diskJsons)
             {
-                SpawnDisk(diskJson, textureLookup);
+                SpawnDisk(diskJson, textureLookup, player1 ? 1 : 2);
+                player1 = player1 == false;
             }
 
             _selectedDiskID = -1;
@@ -130,14 +135,28 @@ namespace DiskWars
             _currentFlap = null;
         }
 
-        private void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup)
+        private void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup, int player)
         {
+            Vector3 position = Vector3.zero;
+
+            switch (player)
+            {
+                case 1:
+                    position = _player1Spawn.position;
+                    break;
+                case 2:
+                    position = _player2Spawn.position;
+                    break;
+            }
+
+            position.y = Disk.THICKNESS;
+
             Disk disk = new Disk
             {
                 ID = _nextDiskID++,
                 Name = json.name,
                 Diameter = json.diameter,
-                Position = new Vector3(0f, Disk.THICKNESS / 2f, 0f)
+                Position = position
             };
 
             while (HasCollisions(disk, disk.Position))
