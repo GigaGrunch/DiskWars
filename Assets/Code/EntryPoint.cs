@@ -61,7 +61,7 @@ namespace DiskWars
 
             if (_selectedDiskID >= 0)
             {
-                selectedDisk = _disks.First(d => d.ID == _selectedDiskID);
+                selectedDisk = _disks[_selectedDiskID];
             }
 
             Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
@@ -92,7 +92,7 @@ namespace DiskWars
                 {
                     GameObject diskActor = hit.collider.gameObject;
                     int diskID = _idByActor[diskActor];
-                    Disk disk = _disks.First(d => d.ID == diskID);
+                    Disk disk = _disks[diskID];
 
                     if (disk.Player == _currentPlayer)
                     {
