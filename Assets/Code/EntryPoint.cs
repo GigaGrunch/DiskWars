@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
+using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
@@ -37,6 +38,11 @@ namespace DiskWars
         private GameObject _diskGhost;
         private Camera _camera;
 
+        private TcpListener _server;
+        private TcpClient _connectedClient;
+
+        private TcpClient _client;
+
         private IEnumerator Start()
         {
             switch (_networkMode)
@@ -45,13 +51,14 @@ namespace DiskWars
                     break;
                 case NetworkMode.Host:
                 {
-                    TcpListener server = new TcpListener(IPAddress.Loopback, 7777);
-                    server.Start();
+                    _server = new TcpListener(IPAddress.Loopback, 7777);
+
+                    _server.Start();
 
                     bool connected = false;
                     Thread connectThread = new Thread(() =>
                     {
-                        TcpClient client = server.AcceptTcpClient();
+                        _connectedClient = _server.AcceptTcpClient();
                         connected = true;
                     });
                     connectThread.Start();
@@ -65,8 +72,8 @@ namespace DiskWars
                 } break;
                 case NetworkMode.Client:
                 {
-                    TcpClient client = new TcpClient();
-                    client.Connect(IPAddress.Loopback, 7777);
+                    _client = new TcpClient();
+                    _client.Connect(IPAddress.Loopback, 7777);
                 } break;
             }
 
@@ -89,6 +96,19 @@ namespace DiskWars
             _currentPlayer = 1;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
             _endTurnButton.onClick.AddListener(EndTurn);
+
+            if (_connectedClient != null)
+            {
+                StreamWriter writer = new StreamWriter(_connectedClient.GetStream());
+                writer.WriteLine("hello");
+                writer.Flush();
+            }
+
+            if (_client != null)
+            {
+                StreamReader reader = new StreamReader(_client.GetStream());
+                Debug.Log(reader.ReadLine());
+            }
 
             while (true)
             {
