@@ -46,35 +46,61 @@ namespace DiskWars
             switch (MainMenu.NetworkMode)
             {
                 case NetworkMode.None:
-                    break;
+                {
+                    yield return StartSingleplayer();
+                } break;
                 case NetworkMode.Host:
                 {
-                    _server = new TcpListener(IPAddress.Loopback, 7777);
-
-                    _server.Start();
-
-                    bool connected = false;
-                    Thread connectThread = new Thread(() =>
-                    {
-                        _connectedClient = _server.AcceptTcpClient();
-                        connected = true;
-                    });
-                    connectThread.Start();
-
-                    while (connected == false)
-                    {
-                        yield return null;
-                    }
-
-                    Debug.Log("connected!");
+                    yield return StartServer();
                 } break;
                 case NetworkMode.Client:
                 {
-                    _client = new TcpClient();
-                    _client.Connect(IPAddress.Loopback, 7777);
+                    yield return StartClient();
                 } break;
             }
+        }
 
+        private IEnumerator StartServer()
+        {
+            _server = new TcpListener(IPAddress.Loopback, 7777);
+
+            _server.Start();
+
+            bool connected = false;
+            Thread connectThread = new Thread(() =>
+            {
+                _connectedClient = _server.AcceptTcpClient();
+                connected = true;
+            });
+            connectThread.Start();
+
+            while (connected == false)
+            {
+                yield return null;
+            }
+
+            Debug.Log("connected!");
+
+            StreamWriter writer = new StreamWriter(_connectedClient.GetStream());
+            writer.WriteLine("hello");
+            writer.Flush();
+        }
+
+        private IEnumerator StartClient()
+        {
+            _client = new TcpClient();
+            _client.Connect(IPAddress.Loopback, 7777);
+
+            Debug.LogError("connected");
+
+            StreamReader reader = new StreamReader(_client.GetStream());
+            Debug.LogError(reader.ReadLine());
+
+            yield return null;
+        }
+
+        private IEnumerator StartSingleplayer()
+        {
             DiskJson[] diskJsons = AssetLoading.LoadDisks();
             Dictionary<string, Texture2D> textureLookup = AssetLoading.LoadTextures();
 
@@ -94,19 +120,6 @@ namespace DiskWars
             _currentPlayer = 1;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
             _endTurnButton.onClick.AddListener(EndTurn);
-
-            if (_connectedClient != null)
-            {
-                StreamWriter writer = new StreamWriter(_connectedClient.GetStream());
-                writer.WriteLine("hello");
-                writer.Flush();
-            }
-
-            if (_client != null)
-            {
-                StreamReader reader = new StreamReader(_client.GetStream());
-                Debug.Log(reader.ReadLine());
-            }
 
             while (true)
             {
