@@ -12,8 +12,6 @@ namespace DiskWars
 {
     public class EntryPoint : MonoBehaviour
     {
-        [SerializeField] private NetworkMode _networkMode;
-
         [SerializeField] private GameObject _diskPrefab;
         [SerializeField] private GameObject _diskGhostPrefab;
 
@@ -45,7 +43,7 @@ namespace DiskWars
 
         private IEnumerator Start()
         {
-            switch (_networkMode)
+            switch (MainMenu.NetworkMode)
             {
                 case NetworkMode.None:
                     break;
@@ -323,12 +321,12 @@ namespace DiskWars
             public GameObject Actor;
             public Vector3 TargetLocation;
         }
+    }
 
-        private enum NetworkMode
-        {
-            None,
-            Host,
-            Client
-        }
+    public enum NetworkMode
+    {
+        None,
+        Host,
+        Client
     }
 }

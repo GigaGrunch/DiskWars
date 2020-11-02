@@ -10,25 +10,30 @@ namespace DiskWars
         [SerializeField] private Button _hostButton;
         [SerializeField] private Button _joinButton;
 
+        public static NetworkMode NetworkMode;
+
         public void Start()
         {
-            _singleplayerButton.onClick.AddListener(StartSingleplayer);
-            _hostButton.onClick.AddListener(HostGame);
-            _joinButton.onClick.AddListener(JoinGame);
+            _singleplayerButton.onClick.AddListener(OnSingleplayerButtonClicked);
+            _hostButton.onClick.AddListener(OnHostButtonClicked);
+            _joinButton.onClick.AddListener(OnJoinClicked);
         }
 
-        private void StartSingleplayer()
+        private void OnSingleplayerButtonClicked()
         {
+            NetworkMode = NetworkMode.None;
             SceneManager.LoadScene("GameScene");
         }
 
-        private void HostGame()
+        private void OnHostButtonClicked()
         {
+            NetworkMode = NetworkMode.Host;
             SceneManager.LoadScene("GameScene");
         }
 
-        private void JoinGame()
+        private void OnJoinClicked()
         {
+            NetworkMode = NetworkMode.Client;
             SceneManager.LoadScene("GameScene");
         }
     }
