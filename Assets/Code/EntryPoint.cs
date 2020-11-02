@@ -5,6 +5,7 @@ using System.IO;
 using System.Net;
 using System.Net.Sockets;
 using System.Threading;
+using System.Threading.Tasks;
 using UnityEngine;
 using UnityEngine.UI;
 
@@ -55,9 +56,16 @@ namespace DiskWars
                 } break;
                 case NetworkMode.Client:
                 {
-                    yield return StartClient();
+                    StartClient();
                 } break;
             }
+        }
+
+        private void OnDestroy()
+        {
+            _server = null;
+            _connectedClient = null;
+            _client = null;
         }
 
         private IEnumerator StartServer()
@@ -82,21 +90,35 @@ namespace DiskWars
             Debug.Log("connected!");
 
             StreamWriter writer = new StreamWriter(_connectedClient.GetStream());
+
             writer.WriteLine("hello");
+            writer.Flush();
+
+            yield return new WaitForSeconds(2f);
+
+            writer.WriteLine("bye!");
             writer.Flush();
         }
 
-        private IEnumerator StartClient()
+        private void StartClient()
         {
             _client = new TcpClient();
             _client.Connect(IPAddress.Loopback, 7777);
+            Debug.Log("connected");
 
-            Debug.LogError("connected");
+            ReadServerMessagesAsync();
+        }
 
+        private async void ReadServerMessagesAsync()
+        {
             StreamReader reader = new StreamReader(_client.GetStream());
-            Debug.LogError(reader.ReadLine());
 
-            yield return null;
+            while (_client != null)
+            {
+                Task<string> readTask = reader.ReadLineAsync();
+                await readTask;
+                Debug.Log(readTask.Result);
+            }
         }
 
         private IEnumerator StartSingleplayer()
