@@ -134,10 +134,16 @@ namespace DiskWars
             message.chat.message = "let's spawn stuff";
             SendToClient(message);
 
-            SpawnDisk(_diskJsons[0], _textureLookup, 1);
             message.type = NetworkMessage.Type.DiskSpawn;
-            message.diskSpawn.player = 1;
-            SendToClient(message);
+
+            for (int i = 0; i < _diskJsons.Length; i++)
+            {
+                int player = (i % 2) + 1;
+                DiskJson disk = _diskJsons[i];
+                SpawnDisk(disk.name, player);
+                message.diskSpawn.player = player;
+                SendToClient(message);
+            }
         }
 
         void ServerUpdate()
@@ -277,7 +283,7 @@ namespace DiskWars
                         Debug.Log(message.chat.message);
                         break;
                     case NetworkMessage.Type.DiskSpawn:
-                        SpawnDisk(_diskJsons[0], _textureLookup, message.diskSpawn.player);
+                        SpawnDisk(_diskJsons[0].name, message.diskSpawn.player);
                         break;
                     default:
                         Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
@@ -291,7 +297,7 @@ namespace DiskWars
             bool player1 = true;
             foreach (DiskJson diskJson in _diskJsons)
             {
-                SpawnDisk(diskJson, _textureLookup, player1 ? 1 : 2);
+                SpawnDisk(diskJson.name, player1 ? 1 : 2);
                 player1 = player1 == false;
             }
 
@@ -345,7 +351,7 @@ namespace DiskWars
             _currentFlap = null;
         }
 
-        void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup, int player)
+        void SpawnDisk(string name, int player)
         {
             Vector3 position = Vector3.zero;
 
@@ -360,6 +366,8 @@ namespace DiskWars
             }
 
             position.y = Disk.THICKNESS;
+
+            DiskJson json = _diskJsons.First(d => d.name == name);
 
             Disk disk = new Disk
             {
@@ -387,7 +395,7 @@ namespace DiskWars
                 Disk.THICKNESS / 2f,
                 disk.Diameter);
 
-            Texture2D texture = textureLookup[json.texture];
+            Texture2D texture = _textureLookup[json.texture];
             actor.GetComponent<Renderer>().material.mainTexture = texture;
 
             _disks.Add(disk);
