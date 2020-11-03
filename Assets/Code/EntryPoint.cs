@@ -62,8 +62,6 @@ namespace DiskWars
             _diskJsons = AssetLoading.LoadDisks();
             _textureLookup = AssetLoading.LoadTextures();
 
-            _endTurnButton.onClick.AddListener(EndTurn);
-
             switch (MainMenu.NetworkMode)
             {
                 case NetworkMode.None:
@@ -171,6 +169,8 @@ namespace DiskWars
             message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
             message.playerTurnUpdate.currentPlayer = _currentPlayer;
             SendToClient(message);
+
+            _endTurnButton.onClick.AddListener(EndTurnServer);
         }
 
         void UpdateDiskGhost(bool hitSomething, Vector3 hitPoint)
@@ -302,6 +302,8 @@ namespace DiskWars
 
             _networkListening = true;
             ReadServerMessagesAsync();
+
+            _endTurnButton.onClick.AddListener(EndTurnClient);
         }
 
         void SendToClient(NetworkMessage message)
@@ -368,10 +370,10 @@ namespace DiskWars
 
             _currentPlayer = 1;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
-            _endTurnButton.onClick.AddListener(EndTurn);
+            _endTurnButton.onClick.AddListener(EndTurnSingleplayer);
         }
 
-        void EndTurn()
+        void EndTurnSingleplayer()
         {
             _currentPlayer++;
 
@@ -386,6 +388,38 @@ namespace DiskWars
             {
                 disk.RemainingMoves = disk.MaxMoves;
             }
+        }
+
+        void EndTurnClient()
+        {
+
+        }
+
+        void EndTurnServer()
+        {
+            if (_currentPlayer != _playerID)
+            {
+                return;
+            }
+
+            _currentPlayer++;
+
+            if (_currentPlayer > 2)
+            {
+                _currentPlayer = 1;
+            }
+
+            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
+
+            foreach (Disk disk in _disks)
+            {
+                disk.RemainingMoves = disk.MaxMoves;
+            }
+
+            NetworkMessage message = new NetworkMessage();
+            message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
+            message.playerTurnUpdate.currentPlayer = _currentPlayer;
+            SendToClient(message);
         }
 
         IEnumerator PerformFlap(FlapAnimation flap)
