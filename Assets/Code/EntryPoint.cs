@@ -245,7 +245,26 @@ namespace DiskWars
         {
             MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
             UpdateDiskGhost(hitAnything, hitPosition);
-            HandleSelectionInput(hitDiskActor);
+            Disk selectedDisk = HandleSelectionInput(hitDiskActor);
+
+            if (Input.GetMouseButtonDown(1))
+            {
+                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
+                {
+                    selectedDisk.RemainingMoves -= 1;
+
+                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                    ghostColor.a = ghostMaterial.color.a;
+                    ghostMaterial.color = ghostColor;
+
+                    NetworkMessage message = new NetworkMessage();
+                    message.type = NetworkMessage.Type.DiskMove;
+                    message.diskMove.targetLocation = _diskGhost.transform.position;
+                    message.diskMove.diskID = selectedDisk.ID;
+                    SendNetworkMessage(message);
+                }
+            }
 
             if (_flapQueue.Any() && _currentFlap == null)
             {
@@ -399,7 +418,17 @@ namespace DiskWars
                     case NetworkMessage.Type.Chat:
                         Debug.Log(message.chat.message);
                         break;
-                    case NetworkMessage.Type.DiskSpawn:
+                    case NetworkMessage.Type.DiskMove:
+                        Disk disk = _disks[message.diskMove.diskID];
+                        disk.Position = message.diskMove.targetLocation;
+                        GameObject actor = _actorByID[disk.ID];
+                        FlapAnimation flapAnimation = new FlapAnimation
+                        {
+                            Actor = actor,
+                            TargetLocation = disk.Position
+                        };
+                        _flapQueue.Enqueue(flapAnimation);
+                        SendNetworkMessage(message);
                         break;
                     case NetworkMessage.Type.PlayerTurnUpdateMessage:
                         EndTurnServer();
@@ -439,13 +468,15 @@ namespace DiskWars
                         SpawnDisk(message.diskSpawn.diskName, message.diskSpawn.player);
                         break;
                     case NetworkMessage.Type.DiskMove:
-                        GameObject actor = _actorByID[message.diskMove.diskID];
-                        FlapAnimation flap = new FlapAnimation
+                        Disk disk = _disks[message.diskMove.diskID];
+                        disk.Position = message.diskMove.targetLocation;
+                        GameObject actor = _actorByID[disk.ID];
+                        FlapAnimation flapAnimation = new FlapAnimation
                         {
                             Actor = actor,
-                            TargetLocation = message.diskMove.targetLocation
+                            TargetLocation = disk.Position
                         };
-                        _flapQueue.Enqueue(flap);
+                        _flapQueue.Enqueue(flapAnimation);
                         break;
                     case NetworkMessage.Type.InitializeClient:
                         _playerID = message.initializeClient.playerID;
