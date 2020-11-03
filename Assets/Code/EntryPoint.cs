@@ -199,6 +199,56 @@ namespace DiskWars
             }
         }
 
+        void ServerUpdate()
+        {
+            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
+            UpdateDiskGhost(hitAnything, hitPosition);
+            HandleSelectionInput(hitDiskActor);
+        }
+
+        void ClientUpdate()
+        {
+            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
+            UpdateDiskGhost(hitAnything, hitPosition);
+            HandleSelectionInput(hitDiskActor);
+        }
+
+        void SingleplayerUpdate()
+        {
+            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
+            UpdateDiskGhost(hitAnything, hitPosition);
+            Disk selectedDisk = HandleSelectionInput(hitDiskActor);
+
+            if (Input.GetMouseButtonDown(1))
+            {
+                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
+                {
+                    selectedDisk.RemainingMoves -= 1;
+                    selectedDisk.Position = _diskGhost.transform.position;
+
+                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                    ghostColor.a = ghostMaterial.color.a;
+                    ghostMaterial.color = ghostColor;
+
+                    GameObject actor = _actorByID[selectedDisk.ID];
+                    FlapAnimation flapAnimation = new FlapAnimation
+                    {
+                        Actor = actor,
+                        TargetLocation = selectedDisk.Position
+                    };
+
+                    _flapQueue.Enqueue(flapAnimation);
+                }
+            }
+
+            if (_flapQueue.Any() && _currentFlap == null)
+            {
+                FlapAnimation flap = _flapQueue.Dequeue();
+                StartCoroutine(PerformFlap(flap));
+            }
+        }
+
         void OnDestroy()
         {
             _doUnityUpdate = false;
@@ -274,56 +324,6 @@ namespace DiskWars
             hitPosition = hit.point;
             bool hitDisk = hitAnything && hit.collider.CompareTag("Disk");
             hitDiskActor = hitDisk ? hit.collider.gameObject : null;
-        }
-
-        void ServerUpdate()
-        {
-            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
-            UpdateDiskGhost(hitAnything, hitPosition);
-            HandleSelectionInput(hitDiskActor);
-        }
-
-        void ClientUpdate()
-        {
-            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
-            UpdateDiskGhost(hitAnything, hitPosition);
-            HandleSelectionInput(hitDiskActor);
-        }
-
-        void SingleplayerUpdate()
-        {
-            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
-            UpdateDiskGhost(hitAnything, hitPosition);
-            Disk selectedDisk = HandleSelectionInput(hitDiskActor);
-
-            if (Input.GetMouseButtonDown(1))
-            {
-                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
-                {
-                    selectedDisk.RemainingMoves -= 1;
-                    selectedDisk.Position = _diskGhost.transform.position;
-
-                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
-                    ghostColor.a = ghostMaterial.color.a;
-                    ghostMaterial.color = ghostColor;
-
-                    GameObject actor = _actorByID[selectedDisk.ID];
-                    FlapAnimation flapAnimation = new FlapAnimation
-                    {
-                        Actor = actor,
-                        TargetLocation = selectedDisk.Position
-                    };
-
-                    _flapQueue.Enqueue(flapAnimation);
-                }
-            }
-
-            if (_flapQueue.Any() && _currentFlap == null)
-            {
-                FlapAnimation flap = _flapQueue.Dequeue();
-                StartCoroutine(PerformFlap(flap));
-            }
         }
 
         void SendNetworkMessage(NetworkMessage message)
@@ -417,36 +417,6 @@ namespace DiskWars
             }
         }
 
-        void EndTurnSingleplayer()
-        {
-            _currentPlayer++;
-
-            if (_currentPlayer > 2)
-            {
-                _currentPlayer = 1;
-            }
-
-            _playerID = _currentPlayer;
-            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
-
-            foreach (Disk disk in _disks)
-            {
-                disk.RemainingMoves = disk.MaxMoves;
-            }
-        }
-
-        void EndTurnClient()
-        {
-            if (_currentPlayer != _playerID)
-            {
-                return;
-            }
-
-            NetworkMessage message = new NetworkMessage();
-            message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
-            SendNetworkMessage(message);
-        }
-
         void EndTurnServer()
         {
             _currentPlayer++;
@@ -469,6 +439,36 @@ namespace DiskWars
             message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
             message.playerTurnUpdate.currentPlayer = _currentPlayer;
             SendNetworkMessage(message);
+        }
+
+        void EndTurnClient()
+        {
+            if (_currentPlayer != _playerID)
+            {
+                return;
+            }
+
+            NetworkMessage message = new NetworkMessage();
+            message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
+            SendNetworkMessage(message);
+        }
+
+        void EndTurnSingleplayer()
+        {
+            _currentPlayer++;
+
+            if (_currentPlayer > 2)
+            {
+                _currentPlayer = 1;
+            }
+
+            _playerID = _currentPlayer;
+            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
+
+            foreach (Disk disk in _disks)
+            {
+                disk.RemainingMoves = disk.MaxMoves;
+            }
         }
 
         IEnumerator PerformFlap(FlapAnimation flap)
