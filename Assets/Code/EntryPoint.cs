@@ -83,7 +83,7 @@ namespace DiskWars
 
         IEnumerator StartServer()
         {
-            _server = new TcpListener(IPAddress.Loopback, 7777);
+            _server = new TcpListener(IPAddress.Any, 7777);
             _server.Start();
 
             bool connected = false;
@@ -149,7 +149,7 @@ namespace DiskWars
         void StartClient()
         {
             _client = new TcpClient();
-            _client.Connect(IPAddress.Loopback, 7777);
+            _client.Connect(MainMenu.IpAddress, 7777);
             _networkStream = _client.GetStream();
             Debug.Log("connected");
 

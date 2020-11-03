@@ -8,8 +8,10 @@ namespace DiskWars
     {
         [SerializeField] private Button _singleplayerButton;
         [SerializeField] private Button _hostButton;
+        [SerializeField] private Text _ipAddressInput;
         [SerializeField] private Button _joinButton;
 
+        public static string IpAddress;
         public static NetworkMode NetworkMode;
 
         public void Start()
@@ -33,6 +35,7 @@ namespace DiskWars
 
         private void OnJoinClicked()
         {
+            IpAddress = _ipAddressInput.text;
             NetworkMode = NetworkMode.Client;
             SceneManager.LoadScene("GameScene");
         }
