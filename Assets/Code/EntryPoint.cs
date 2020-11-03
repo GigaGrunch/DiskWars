@@ -150,7 +150,26 @@ namespace DiskWars
             {
                 Task<string> readTask = reader.ReadLineAsync();
                 await readTask;
-                Debug.Log(readTask.Result);
+
+                string json = readTask.Result;
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    continue;
+                }
+
+                NetworkMessage message = JsonUtility.FromJson<NetworkMessage>(json);
+
+                switch (message.type)
+                {
+                    case NetworkMessage.Type.chat:
+                        Debug.Log(message.chat.message);
+                        break;
+                    case NetworkMessage.Type.diskSpawn:
+                        break;
+                    default:
+                        Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
+                        break;
+                }
             }
         }
 
