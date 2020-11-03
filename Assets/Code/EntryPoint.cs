@@ -1,4 +1,5 @@
-﻿using System.Collections;
+﻿using System;
+using System.Collections;
 using System.Linq;
 using System.Collections.Generic;
 using System.IO;
@@ -39,6 +40,7 @@ namespace DiskWars
 
         private TcpListener _server;
         private TcpClient _connectedClient;
+        private NetworkStream _networkStream;
 
         private TcpClient _client;
 
@@ -78,6 +80,7 @@ namespace DiskWars
             Thread connectThread = new Thread(() =>
             {
                 _connectedClient = _server.AcceptTcpClient();
+                _networkStream = _connectedClient.GetStream();
                 connected = true;
             });
             connectThread.Start();
@@ -89,15 +92,45 @@ namespace DiskWars
 
             Debug.Log("connected!");
 
-            StreamWriter writer = new StreamWriter(_connectedClient.GetStream());
+            NetworkMessage message = new NetworkMessage
+            {
+                type = NetworkMessage.Type.chat,
+                chat = new ChatMessage { message = "hello!" }
+            };
 
-            writer.WriteLine("hello");
+            SendToClient(message);
+
+            message.chat.message = "bye!";
+
+            SendToClient(message);
+        }
+
+        private void SendToClient(NetworkMessage message)
+        {
+            StreamWriter writer = new StreamWriter(_networkStream);
+            string json = JsonUtility.ToJson(message);
+            writer.WriteLine(json);
             writer.Flush();
+        }
 
-            yield return new WaitForSeconds(2f);
+        [Serializable]
+        private struct ChatMessage
+        {
+            public string message;
+        }
 
-            writer.WriteLine("bye!");
-            writer.Flush();
+        [Serializable]
+        private struct NetworkMessage
+        {
+            public enum Type
+            {
+                unknown,
+                chat,
+                diskSpawn
+            }
+
+            public Type type;
+            public ChatMessage chat;
         }
 
         private void StartClient()
