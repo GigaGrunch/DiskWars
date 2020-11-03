@@ -132,17 +132,20 @@ namespace DiskWars
 
             Debug.Log("connected!");
 
+            _networkListening = true;
+            ReadClientMessagesAsync();
+
             NetworkMessage message = new NetworkMessage();
 
             message.type = NetworkMessage.Type.Chat;
             message.chat.message = "hello!";
-            SendToClient(message);
+            SendNetworkMessage(message);
 
             message.type = NetworkMessage.Type.InitializeClient;
             message.initializeClient.playerID = 2;
             _playerID = 1;
 
-            SendToClient(message);
+            SendNetworkMessage(message);
 
             message.type = NetworkMessage.Type.DiskSpawn;
 
@@ -153,7 +156,7 @@ namespace DiskWars
                 SpawnDisk(disk.name, player);
                 message.diskSpawn.player = player;
                 message.diskSpawn.diskName = disk.name;
-                SendToClient(message);
+                SendNetworkMessage(message);
             }
 
             _currentPlayer = 1;
@@ -168,7 +171,7 @@ namespace DiskWars
 
             message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
             message.playerTurnUpdate.currentPlayer = _currentPlayer;
-            SendToClient(message);
+            SendNetworkMessage(message);
 
             _endTurnButton.onClick.AddListener(EndTurnServer);
         }
@@ -202,7 +205,7 @@ namespace DiskWars
             }
         }
 
-        void HandleSelectionInput(GameObject hitDiskActor)
+        Disk HandleSelectionInput(GameObject hitDiskActor)
         {
             if (Input.GetMouseButton(0))
             {
@@ -228,6 +231,8 @@ namespace DiskWars
                     _diskGhost.transform.localScale = Vector3.zero;
                 }
             }
+
+            return _selectedDiskID >= 0 ? _disks[_selectedDiskID] : null;
         }
 
         void MouseRaycast(
@@ -260,9 +265,7 @@ namespace DiskWars
         {
             MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
             UpdateDiskGhost(hitAnything, hitPosition);
-            HandleSelectionInput(hitDiskActor);
-
-            Disk selectedDisk = _selectedDiskID >= 0 ? _disks[_selectedDiskID] : null;
+            Disk selectedDisk = HandleSelectionInput(hitDiskActor);
 
             if (Input.GetMouseButtonDown(1))
             {
@@ -298,6 +301,7 @@ namespace DiskWars
         {
             _client = new TcpClient();
             _client.Connect(IPAddress.Loopback, 7777);
+            _networkStream = _client.GetStream();
             Debug.Log("connected");
 
             _networkListening = true;
@@ -306,7 +310,7 @@ namespace DiskWars
             _endTurnButton.onClick.AddListener(EndTurnClient);
         }
 
-        void SendToClient(NetworkMessage message)
+        void SendNetworkMessage(NetworkMessage message)
         {
             StreamWriter writer = new StreamWriter(_networkStream);
             string json = JsonUtility.ToJson(message);
@@ -314,9 +318,9 @@ namespace DiskWars
             writer.Flush();
         }
 
-        async void ReadServerMessagesAsync()
+        async void ReadClientMessagesAsync()
         {
-            StreamReader reader = new StreamReader(_client.GetStream());
+            StreamReader reader = new StreamReader(_networkStream);
 
             while (_networkListening)
             {
@@ -328,6 +332,44 @@ namespace DiskWars
                 {
                     continue;
                 }
+
+                Debug.Log(json);
+
+                NetworkMessage message = JsonUtility.FromJson<NetworkMessage>(json);
+
+                switch (message.type)
+                {
+                    case NetworkMessage.Type.Chat:
+                        Debug.Log(message.chat.message);
+                        break;
+                    case NetworkMessage.Type.DiskSpawn:
+                        break;
+                    case NetworkMessage.Type.PlayerTurnUpdateMessage:
+                        EndTurnServer();
+                        break;
+                    default:
+                        Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
+                        break;
+                }
+            }
+        }
+
+        async void ReadServerMessagesAsync()
+        {
+            StreamReader reader = new StreamReader(_networkStream);
+
+            while (_networkListening)
+            {
+                Task<string> readTask = reader.ReadLineAsync();
+                await readTask;
+
+                string json = readTask.Result;
+                if (string.IsNullOrWhiteSpace(json))
+                {
+                    continue;
+                }
+
+                Debug.Log(json);
 
                 NetworkMessage message = JsonUtility.FromJson<NetworkMessage>(json);
 
@@ -392,16 +434,18 @@ namespace DiskWars
 
         void EndTurnClient()
         {
-
-        }
-
-        void EndTurnServer()
-        {
             if (_currentPlayer != _playerID)
             {
                 return;
             }
 
+            NetworkMessage message = new NetworkMessage();
+            message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
+            SendNetworkMessage(message);
+        }
+
+        void EndTurnServer()
+        {
             _currentPlayer++;
 
             if (_currentPlayer > 2)
@@ -409,7 +453,9 @@ namespace DiskWars
                 _currentPlayer = 1;
             }
 
-            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
+            _currentPlayerDisplay.text = _currentPlayer == _playerID
+                ? "It's your turn!"
+                : $"Player {_currentPlayer}'s turn";
 
             foreach (Disk disk in _disks)
             {
@@ -419,7 +465,7 @@ namespace DiskWars
             NetworkMessage message = new NetworkMessage();
             message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
             message.playerTurnUpdate.currentPlayer = _currentPlayer;
-            SendToClient(message);
+            SendNetworkMessage(message);
         }
 
         IEnumerator PerformFlap(FlapAnimation flap)
