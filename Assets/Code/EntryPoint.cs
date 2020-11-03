@@ -43,9 +43,14 @@ namespace DiskWars
         private NetworkStream _networkStream;
 
         private TcpClient _client;
+        private DiskJson[] _diskJsons;
+        private Dictionary<string, Texture2D> _textureLookup;
 
         private IEnumerator Start()
         {
+            _diskJsons = AssetLoading.LoadDisks();
+            _textureLookup = AssetLoading.LoadTextures();
+
             switch (MainMenu.NetworkMode)
             {
                 case NetworkMode.None:
@@ -92,16 +97,20 @@ namespace DiskWars
 
             Debug.Log("connected!");
 
-            NetworkMessage message = new NetworkMessage
-            {
-                type = NetworkMessage.Type.chat,
-                chat = new ChatMessage { message = "hello!" }
-            };
+            NetworkMessage message = new NetworkMessage();
+            message.type = NetworkMessage.Type.Chat;
+            message.chat.message = "hello!";
 
             SendToClient(message);
 
             message.chat.message = "bye!";
 
+            SendToClient(message);
+
+            SpawnDisk(_diskJsons[0], _textureLookup, 1);
+
+            message.type = NetworkMessage.Type.DiskSpawn;
+            message.diskSpawn.player = 1;
             SendToClient(message);
         }
 
@@ -120,17 +129,24 @@ namespace DiskWars
         }
 
         [Serializable]
+        private struct DiskSpawnMessage
+        {
+            public int player;
+        }
+
+        [Serializable]
         private struct NetworkMessage
         {
             public enum Type
             {
-                unknown,
-                chat,
-                diskSpawn
+                Unknown,
+                Chat,
+                DiskSpawn
             }
 
             public Type type;
             public ChatMessage chat;
+            public DiskSpawnMessage diskSpawn;
         }
 
         private void StartClient()
@@ -161,10 +177,11 @@ namespace DiskWars
 
                 switch (message.type)
                 {
-                    case NetworkMessage.Type.chat:
+                    case NetworkMessage.Type.Chat:
                         Debug.Log(message.chat.message);
                         break;
-                    case NetworkMessage.Type.diskSpawn:
+                    case NetworkMessage.Type.DiskSpawn:
+                        SpawnDisk(_diskJsons[0], _textureLookup, message.diskSpawn.player);
                         break;
                     default:
                         Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
@@ -175,13 +192,10 @@ namespace DiskWars
 
         private IEnumerator StartSingleplayer()
         {
-            DiskJson[] diskJsons = AssetLoading.LoadDisks();
-            Dictionary<string, Texture2D> textureLookup = AssetLoading.LoadTextures();
-
             bool player1 = true;
-            foreach (DiskJson diskJson in diskJsons)
+            foreach (DiskJson diskJson in _diskJsons)
             {
-                SpawnDisk(diskJson, textureLookup, player1 ? 1 : 2);
+                SpawnDisk(diskJson, _textureLookup, player1 ? 1 : 2);
                 player1 = player1 == false;
             }
 
