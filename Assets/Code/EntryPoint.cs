@@ -34,6 +34,7 @@ namespace DiskWars
         int _selectedDiskID;
 
         int _currentPlayer;
+        int _playerID;
 
         GameObject _diskGhost;
         Camera _camera;
@@ -51,8 +52,16 @@ namespace DiskWars
 
         IEnumerator Start()
         {
+            _selectedDiskID = -1;
+            _camera = Camera.main;
+
+            _diskGhost = Instantiate(_diskGhostPrefab);
+            _diskGhost.transform.localScale = Vector3.zero;
+
             _diskJsons = AssetLoading.LoadDisks();
             _textureLookup = AssetLoading.LoadTextures();
+
+            _endTurnButton.onClick.AddListener(EndTurn);
 
             switch (MainMenu.NetworkMode)
             {
@@ -106,7 +115,6 @@ namespace DiskWars
         IEnumerator StartServer()
         {
             _server = new TcpListener(IPAddress.Loopback, 7777);
-
             _server.Start();
 
             bool connected = false;
@@ -131,7 +139,10 @@ namespace DiskWars
             message.chat.message = "hello!";
             SendToClient(message);
 
-            message.chat.message = "let's spawn stuff";
+            message.type = NetworkMessage.Type.InitializeClient;
+            message.initializeClient.playerID = 2;
+            _playerID = 1;
+
             SendToClient(message);
 
             message.type = NetworkMessage.Type.DiskSpawn;
@@ -145,16 +156,145 @@ namespace DiskWars
                 message.diskSpawn.diskName = disk.name;
                 SendToClient(message);
             }
+
+            _currentPlayer = 1;
+            _currentPlayerDisplay.text = _currentPlayer == _playerID
+                ? "It's your turn!"
+                : $"Player {_currentPlayer}'s turn";
+
+            message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
+            message.playerTurnUpdate.currentPlayer = _currentPlayer;
+            SendToClient(message);
         }
 
         void ServerUpdate()
         {
+            if (_currentPlayer != _playerID)
+            {
+                _selectedDiskID = -1;
+                _diskGhost.transform.localScale = Vector3.zero;
+                return;
+            }
 
+            Disk selectedDisk = null;
+
+            if (_selectedDiskID >= 0)
+            {
+                selectedDisk = _disks[_selectedDiskID];
+            }
+
+            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
+            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
+
+            if (hitSomething && selectedDisk != null)
+            {
+                Vector3 mousePosition = hit.point;
+                Vector3 targetPoint = mousePosition;
+                targetPoint.y = selectedDisk.Position.y;
+                Vector3 diskLocation = selectedDisk.Position;
+                Vector3 direction = targetPoint - diskLocation;
+                Vector3 movement = direction.normalized * selectedDisk.Diameter;
+                Vector3 targetLocation = diskLocation + movement;
+                targetLocation.y = Disk.THICKNESS / 2f;
+
+                while (HasCollisions(selectedDisk, targetLocation))
+                {
+                    targetLocation.y += Disk.THICKNESS;
+                }
+
+                _diskGhost.transform.position = targetLocation;
+            }
+
+            if (Input.GetMouseButton(0))
+            {
+                if (hitSomething && hit.collider.CompareTag("Disk"))
+                {
+                    GameObject diskActor = hit.collider.gameObject;
+                    int diskID = _idByActor[diskActor];
+                    Disk disk = _disks[diskID];
+
+                    if (disk.Player == _currentPlayer)
+                    {
+                        _selectedDiskID = diskID;
+                        _diskGhost.transform.localScale = diskActor.transform.localScale;
+
+                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
+                        ghostColor.a = ghostMaterial.color.a;
+                        ghostMaterial.color = ghostColor;
+                    }
+                }
+                else
+                {
+                    _selectedDiskID = -1;
+                    _diskGhost.transform.localScale = Vector3.zero;
+                }
+            }
         }
 
         void ClientUpdate()
         {
+            if (_currentPlayer != _playerID)
+            {
+                _selectedDiskID = -1;
+                _diskGhost.transform.localScale = Vector3.zero;
+                return;
+            }
 
+            Disk selectedDisk = null;
+
+            if (_selectedDiskID >= 0)
+            {
+                selectedDisk = _disks[_selectedDiskID];
+            }
+
+            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
+            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
+
+            if (hitSomething && selectedDisk != null)
+            {
+                Vector3 mousePosition = hit.point;
+                Vector3 targetPoint = mousePosition;
+                targetPoint.y = selectedDisk.Position.y;
+                Vector3 diskLocation = selectedDisk.Position;
+                Vector3 direction = targetPoint - diskLocation;
+                Vector3 movement = direction.normalized * selectedDisk.Diameter;
+                Vector3 targetLocation = diskLocation + movement;
+                targetLocation.y = Disk.THICKNESS / 2f;
+
+                while (HasCollisions(selectedDisk, targetLocation))
+                {
+                    targetLocation.y += Disk.THICKNESS;
+                }
+
+                _diskGhost.transform.position = targetLocation;
+            }
+
+            if (Input.GetMouseButton(0))
+            {
+                if (hitSomething && hit.collider.CompareTag("Disk"))
+                {
+                    GameObject diskActor = hit.collider.gameObject;
+                    int diskID = _idByActor[diskActor];
+                    Disk disk = _disks[diskID];
+
+                    if (disk.Player == _currentPlayer)
+                    {
+                        _selectedDiskID = diskID;
+                        _diskGhost.transform.localScale = diskActor.transform.localScale;
+
+                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
+                        ghostColor.a = ghostMaterial.color.a;
+                        ghostMaterial.color = ghostColor;
+                    }
+                }
+                else
+                {
+                    _selectedDiskID = -1;
+                    _diskGhost.transform.localScale = Vector3.zero;
+                }
+            }
         }
 
         void SingleplayerUpdate()
@@ -286,6 +426,15 @@ namespace DiskWars
                     case NetworkMessage.Type.DiskSpawn:
                         SpawnDisk(message.diskSpawn.diskName, message.diskSpawn.player);
                         break;
+                    case NetworkMessage.Type.InitializeClient:
+                        _playerID = message.initializeClient.playerID;
+                        break;
+                    case NetworkMessage.Type.PlayerTurnUpdateMessage:
+                        _currentPlayer = message.playerTurnUpdate.currentPlayer;
+                        _currentPlayerDisplay.text = _currentPlayer == _playerID
+                            ? "It's your turn!"
+                            : $"Player {_currentPlayer}'s turn";
+                        break;
                     default:
                         Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
                         break;
@@ -301,12 +450,6 @@ namespace DiskWars
                 SpawnDisk(diskJson.name, player1 ? 1 : 2);
                 player1 = player1 == false;
             }
-
-            _selectedDiskID = -1;
-
-            _camera = Camera.main;
-            _diskGhost = Instantiate(_diskGhostPrefab);
-            _diskGhost.transform.localScale = Vector3.zero;
 
             _currentPlayer = 1;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
@@ -462,17 +605,33 @@ namespace DiskWars
     }
 
     [Serializable]
+    struct InitializeClientMessage
+    {
+        public int playerID;
+    }
+
+    [Serializable]
+    struct PlayerTurnUpdateMessage
+    {
+        public int currentPlayer;
+    }
+
+    [Serializable]
     struct NetworkMessage
     {
         public enum Type
         {
             Unknown,
             Chat,
-            DiskSpawn
+            DiskSpawn,
+            InitializeClient,
+            PlayerTurnUpdateMessage
         }
 
         public Type type;
         public ChatMessage chat;
         public DiskSpawnMessage diskSpawn;
+        public InitializeClientMessage initializeClient;
+        public PlayerTurnUpdateMessage playerTurnUpdate;
     }
 }
