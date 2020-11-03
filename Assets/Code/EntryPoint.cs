@@ -142,6 +142,7 @@ namespace DiskWars
                 DiskJson disk = _diskJsons[i];
                 SpawnDisk(disk.name, player);
                 message.diskSpawn.player = player;
+                message.diskSpawn.diskName = disk.name;
                 SendToClient(message);
             }
         }
@@ -283,7 +284,7 @@ namespace DiskWars
                         Debug.Log(message.chat.message);
                         break;
                     case NetworkMessage.Type.DiskSpawn:
-                        SpawnDisk(_diskJsons[0].name, message.diskSpawn.player);
+                        SpawnDisk(message.diskSpawn.diskName, message.diskSpawn.player);
                         break;
                     default:
                         Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
@@ -457,6 +458,7 @@ namespace DiskWars
     struct DiskSpawnMessage
     {
         public int player;
+        public string diskName;
     }
 
     [Serializable]
