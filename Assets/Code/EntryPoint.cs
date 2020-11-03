@@ -57,6 +57,7 @@ namespace DiskWars
 
             _diskGhost = Instantiate(_diskGhostPrefab);
             _diskGhost.transform.localScale = Vector3.zero;
+            _diskGhost.SetActive(false);
 
             _diskJsons = AssetLoading.LoadDisks();
             _textureLookup = AssetLoading.LoadTextures();
@@ -162,20 +163,18 @@ namespace DiskWars
                 ? "It's your turn!"
                 : $"Player {_currentPlayer}'s turn";
 
+            if (_currentPlayer == _playerID)
+            {
+                _diskGhost.SetActive(true);
+            }
+
             message.type = NetworkMessage.Type.PlayerTurnUpdateMessage;
             message.playerTurnUpdate.currentPlayer = _currentPlayer;
             SendToClient(message);
         }
 
-        void ServerUpdate()
+        void UpdateDiskGhost(bool hitSomething, Vector3 hitPoint)
         {
-            if (_currentPlayer != _playerID)
-            {
-                _selectedDiskID = -1;
-                _diskGhost.transform.localScale = Vector3.zero;
-                return;
-            }
-
             Disk selectedDisk = null;
 
             if (_selectedDiskID >= 0)
@@ -183,12 +182,9 @@ namespace DiskWars
                 selectedDisk = _disks[_selectedDiskID];
             }
 
-            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
-            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
-
             if (hitSomething && selectedDisk != null)
             {
-                Vector3 mousePosition = hit.point;
+                Vector3 mousePosition = hitPoint;
                 Vector3 targetPoint = mousePosition;
                 targetPoint.y = selectedDisk.Position.y;
                 Vector3 diskLocation = selectedDisk.Position;
@@ -204,19 +200,21 @@ namespace DiskWars
 
                 _diskGhost.transform.position = targetLocation;
             }
+        }
 
+        void HandleSelectionInput(GameObject hitDiskActor)
+        {
             if (Input.GetMouseButton(0))
             {
-                if (hitSomething && hit.collider.CompareTag("Disk"))
+                if (ReferenceEquals(hitDiskActor, null) == false)
                 {
-                    GameObject diskActor = hit.collider.gameObject;
-                    int diskID = _idByActor[diskActor];
+                    int diskID = _idByActor[hitDiskActor];
                     Disk disk = _disks[diskID];
 
                     if (disk.Player == _currentPlayer)
                     {
                         _selectedDiskID = diskID;
-                        _diskGhost.transform.localScale = diskActor.transform.localScale;
+                        _diskGhost.transform.localScale = hitDiskActor.transform.localScale;
 
                         Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
                         Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
@@ -230,130 +228,43 @@ namespace DiskWars
                     _diskGhost.transform.localScale = Vector3.zero;
                 }
             }
+        }
+
+        void MouseRaycast(
+            out bool hitAnything,
+            out Vector3 hitPosition,
+            out GameObject hitDiskActor)
+        {
+            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
+            hitAnything = Physics.Raycast(mouseRay, out RaycastHit hit);
+            hitPosition = hit.point;
+            bool hitDisk = hitAnything && hit.collider.CompareTag("Disk");
+            hitDiskActor = hitDisk ? hit.collider.gameObject : null;
+        }
+
+        void ServerUpdate()
+        {
+            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
+            UpdateDiskGhost(hitAnything, hitPosition);
+            HandleSelectionInput(hitDiskActor);
         }
 
         void ClientUpdate()
         {
-            if (_currentPlayer != _playerID)
-            {
-                _selectedDiskID = -1;
-                _diskGhost.transform.localScale = Vector3.zero;
-                return;
-            }
-
-            Disk selectedDisk = null;
-
-            if (_selectedDiskID >= 0)
-            {
-                selectedDisk = _disks[_selectedDiskID];
-            }
-
-            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
-            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
-
-            if (hitSomething && selectedDisk != null)
-            {
-                Vector3 mousePosition = hit.point;
-                Vector3 targetPoint = mousePosition;
-                targetPoint.y = selectedDisk.Position.y;
-                Vector3 diskLocation = selectedDisk.Position;
-                Vector3 direction = targetPoint - diskLocation;
-                Vector3 movement = direction.normalized * selectedDisk.Diameter;
-                Vector3 targetLocation = diskLocation + movement;
-                targetLocation.y = Disk.THICKNESS / 2f;
-
-                while (HasCollisions(selectedDisk, targetLocation))
-                {
-                    targetLocation.y += Disk.THICKNESS;
-                }
-
-                _diskGhost.transform.position = targetLocation;
-            }
-
-            if (Input.GetMouseButton(0))
-            {
-                if (hitSomething && hit.collider.CompareTag("Disk"))
-                {
-                    GameObject diskActor = hit.collider.gameObject;
-                    int diskID = _idByActor[diskActor];
-                    Disk disk = _disks[diskID];
-
-                    if (disk.Player == _currentPlayer)
-                    {
-                        _selectedDiskID = diskID;
-                        _diskGhost.transform.localScale = diskActor.transform.localScale;
-
-                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
-                        ghostColor.a = ghostMaterial.color.a;
-                        ghostMaterial.color = ghostColor;
-                    }
-                }
-                else
-                {
-                    _selectedDiskID = -1;
-                    _diskGhost.transform.localScale = Vector3.zero;
-                }
-            }
+            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
+            UpdateDiskGhost(hitAnything, hitPosition);
+            HandleSelectionInput(hitDiskActor);
         }
 
         void SingleplayerUpdate()
         {
-            Disk selectedDisk = null;
+            MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
+            UpdateDiskGhost(hitAnything, hitPosition);
+            HandleSelectionInput(hitDiskActor);
 
-            if (_selectedDiskID >= 0)
-            {
-                selectedDisk = _disks[_selectedDiskID];
-            }
+            Disk selectedDisk = _selectedDiskID >= 0 ? _disks[_selectedDiskID] : null;
 
-            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
-            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
-
-            if (hitSomething && selectedDisk != null)
-            {
-                Vector3 mousePosition = hit.point;
-                Vector3 targetPoint = mousePosition;
-                targetPoint.y = selectedDisk.Position.y;
-                Vector3 diskLocation = selectedDisk.Position;
-                Vector3 direction = targetPoint - diskLocation;
-                Vector3 movement = direction.normalized * selectedDisk.Diameter;
-                Vector3 targetLocation = diskLocation + movement;
-                targetLocation.y = Disk.THICKNESS / 2f;
-
-                while (HasCollisions(selectedDisk, targetLocation))
-                {
-                    targetLocation.y += Disk.THICKNESS;
-                }
-
-                _diskGhost.transform.position = targetLocation;
-            }
-
-            if (Input.GetMouseButton(0))
-            {
-                if (hitSomething && hit.collider.CompareTag("Disk"))
-                {
-                    GameObject diskActor = hit.collider.gameObject;
-                    int diskID = _idByActor[diskActor];
-                    Disk disk = _disks[diskID];
-
-                    if (disk.Player == _currentPlayer)
-                    {
-                        _selectedDiskID = diskID;
-                        _diskGhost.transform.localScale = diskActor.transform.localScale;
-
-                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
-                        ghostColor.a = ghostMaterial.color.a;
-                        ghostMaterial.color = ghostColor;
-                    }
-                }
-                else
-                {
-                    _selectedDiskID = -1;
-                    _diskGhost.transform.localScale = Vector3.zero;
-                }
-            }
-            else if (Input.GetMouseButtonDown(1))
+            if (Input.GetMouseButtonDown(1))
             {
                 if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
                 {
@@ -434,6 +345,10 @@ namespace DiskWars
                         _currentPlayerDisplay.text = _currentPlayer == _playerID
                             ? "It's your turn!"
                             : $"Player {_currentPlayer}'s turn";
+                        if (_currentPlayer == _playerID)
+                        {
+                            _diskGhost.SetActive(true);
+                        }
                         break;
                     default:
                         Debug.LogError($"{message.type} is not a valid value for {typeof(NetworkMessage.Type)}.");
