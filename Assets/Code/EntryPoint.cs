@@ -203,7 +203,42 @@ namespace DiskWars
         {
             MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
             UpdateDiskGhost(hitAnything, hitPosition);
-            HandleSelectionInput(hitDiskActor);
+            Disk selectedDisk = HandleSelectionInput(hitDiskActor);
+
+            if (Input.GetMouseButtonDown(1))
+            {
+                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
+                {
+                    selectedDisk.RemainingMoves -= 1;
+                    selectedDisk.Position = _diskGhost.transform.position;
+
+                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                    ghostColor.a = ghostMaterial.color.a;
+                    ghostMaterial.color = ghostColor;
+
+                    GameObject actor = _actorByID[selectedDisk.ID];
+                    FlapAnimation flapAnimation = new FlapAnimation
+                    {
+                        Actor = actor,
+                        TargetLocation = selectedDisk.Position
+                    };
+
+                    _flapQueue.Enqueue(flapAnimation);
+
+                    NetworkMessage message = new NetworkMessage();
+                    message.type = NetworkMessage.Type.DiskMove;
+                    message.diskMove.diskID = selectedDisk.ID;
+                    message.diskMove.targetLocation = selectedDisk.Position;
+                    SendNetworkMessage(message);
+                }
+            }
+
+            if (_flapQueue.Any() && _currentFlap == null)
+            {
+                FlapAnimation flap = _flapQueue.Dequeue();
+                StartCoroutine(PerformFlap(flap));
+            }
         }
 
         void ClientUpdate()
@@ -211,6 +246,12 @@ namespace DiskWars
             MouseRaycast(out bool hitAnything, out Vector3 hitPosition, out GameObject hitDiskActor);
             UpdateDiskGhost(hitAnything, hitPosition);
             HandleSelectionInput(hitDiskActor);
+
+            if (_flapQueue.Any() && _currentFlap == null)
+            {
+                FlapAnimation flap = _flapQueue.Dequeue();
+                StartCoroutine(PerformFlap(flap));
+            }
         }
 
         void SingleplayerUpdate()
@@ -396,6 +437,15 @@ namespace DiskWars
                         break;
                     case NetworkMessage.Type.DiskSpawn:
                         SpawnDisk(message.diskSpawn.diskName, message.diskSpawn.player);
+                        break;
+                    case NetworkMessage.Type.DiskMove:
+                        GameObject actor = _actorByID[message.diskMove.diskID];
+                        FlapAnimation flap = new FlapAnimation
+                        {
+                            Actor = actor,
+                            TargetLocation = message.diskMove.targetLocation
+                        };
+                        _flapQueue.Enqueue(flap);
                         break;
                     case NetworkMessage.Type.InitializeClient:
                         _playerID = message.initializeClient.playerID;
@@ -603,6 +653,13 @@ namespace DiskWars
     }
 
     [Serializable]
+    struct DiskMoveMessage
+    {
+        public int diskID;
+        public Vector3 targetLocation;
+    }
+
+    [Serializable]
     struct InitializeClientMessage
     {
         public int playerID;
@@ -622,6 +679,7 @@ namespace DiskWars
             Unknown,
             Chat,
             DiskSpawn,
+            DiskMove,
             InitializeClient,
             PlayerTurnUpdateMessage
         }
@@ -629,6 +687,7 @@ namespace DiskWars
         public Type type;
         public ChatMessage chat;
         public DiskSpawnMessage diskSpawn;
+        public DiskMoveMessage diskMove;
         public InitializeClientMessage initializeClient;
         public PlayerTurnUpdateMessage playerTurnUpdate;
     }
