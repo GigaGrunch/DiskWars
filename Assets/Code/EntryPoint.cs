@@ -81,36 +81,6 @@ namespace DiskWars
             _doUnityUpdate = true;
         }
 
-        void Update()
-        {
-            if (_doUnityUpdate == false)
-            {
-                return;
-            }
-
-            switch (MainMenu.NetworkMode)
-            {
-                case NetworkMode.None:
-                {
-                    SingleplayerUpdate();
-                } break;
-                case NetworkMode.Host:
-                {
-                    ServerUpdate();
-                } break;
-                case NetworkMode.Client:
-                {
-                    ClientUpdate();
-                } break;
-            }
-        }
-
-        void OnDestroy()
-        {
-            _doUnityUpdate = false;
-            _networkListening = false;
-        }
-
         IEnumerator StartServer()
         {
             _server = new TcpListener(IPAddress.Loopback, 7777);
@@ -174,6 +144,65 @@ namespace DiskWars
             SendNetworkMessage(message);
 
             _endTurnButton.onClick.AddListener(EndTurnServer);
+        }
+
+        void StartClient()
+        {
+            _client = new TcpClient();
+            _client.Connect(IPAddress.Loopback, 7777);
+            _networkStream = _client.GetStream();
+            Debug.Log("connected");
+
+            _networkListening = true;
+            ReadServerMessagesAsync();
+
+            _endTurnButton.onClick.AddListener(EndTurnClient);
+        }
+
+        void StartSingleplayer()
+        {
+            bool player1 = true;
+            foreach (DiskJson diskJson in _diskJsons)
+            {
+                SpawnDisk(diskJson.name, player1 ? 1 : 2);
+                player1 = player1 == false;
+            }
+
+            _currentPlayer = 1;
+            _playerID = _currentPlayer;
+            _diskGhost.SetActive(true);
+            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
+            _endTurnButton.onClick.AddListener(EndTurnSingleplayer);
+        }
+
+        void Update()
+        {
+            if (_doUnityUpdate == false)
+            {
+                return;
+            }
+
+            switch (MainMenu.NetworkMode)
+            {
+                case NetworkMode.None:
+                {
+                    SingleplayerUpdate();
+                } break;
+                case NetworkMode.Host:
+                {
+                    ServerUpdate();
+                } break;
+                case NetworkMode.Client:
+                {
+                    ClientUpdate();
+                } break;
+            }
+        }
+
+        void OnDestroy()
+        {
+            _doUnityUpdate = false;
+            _networkListening = false;
         }
 
         void UpdateDiskGhost(bool hitSomething, Vector3 hitPoint)
@@ -297,19 +326,6 @@ namespace DiskWars
             }
         }
 
-        void StartClient()
-        {
-            _client = new TcpClient();
-            _client.Connect(IPAddress.Loopback, 7777);
-            _networkStream = _client.GetStream();
-            Debug.Log("connected");
-
-            _networkListening = true;
-            ReadServerMessagesAsync();
-
-            _endTurnButton.onClick.AddListener(EndTurnClient);
-        }
-
         void SendNetworkMessage(NetworkMessage message)
         {
             StreamWriter writer = new StreamWriter(_networkStream);
@@ -401,20 +417,6 @@ namespace DiskWars
             }
         }
 
-        void StartSingleplayer()
-        {
-            bool player1 = true;
-            foreach (DiskJson diskJson in _diskJsons)
-            {
-                SpawnDisk(diskJson.name, player1 ? 1 : 2);
-                player1 = player1 == false;
-            }
-
-            _currentPlayer = 1;
-            _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
-            _endTurnButton.onClick.AddListener(EndTurnSingleplayer);
-        }
-
         void EndTurnSingleplayer()
         {
             _currentPlayer++;
@@ -424,6 +426,7 @@ namespace DiskWars
                 _currentPlayer = 1;
             }
 
+            _playerID = _currentPlayer;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
 
             foreach (Disk disk in _disks)
