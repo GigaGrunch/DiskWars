@@ -12,41 +12,44 @@ using UnityEngine.UI;
 
 namespace DiskWars
 {
-    public class EntryPoint : MonoBehaviour
+    class EntryPoint : MonoBehaviour
     {
-        [SerializeField] private GameObject _diskPrefab;
-        [SerializeField] private GameObject _diskGhostPrefab;
+        [SerializeField] GameObject _diskPrefab;
+        [SerializeField] GameObject _diskGhostPrefab;
 
-        [SerializeField] private Transform _player1Spawn;
-        [SerializeField] private Transform _player2Spawn;
+        [SerializeField] Transform _player1Spawn;
+        [SerializeField] Transform _player2Spawn;
 
-        [SerializeField] private Text _currentPlayerDisplay;
-        [SerializeField] private Button _endTurnButton;
+        [SerializeField] Text _currentPlayerDisplay;
+        [SerializeField] Button _endTurnButton;
 
-        private readonly List<Disk> _disks = new List<Disk>();
-        private readonly Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
-        private readonly Dictionary<GameObject, int> _idByActor = new Dictionary<GameObject, int>();
+        List<Disk> _disks = new List<Disk>();
+        Dictionary<int, GameObject> _actorByID = new Dictionary<int, GameObject>();
+        Dictionary<GameObject, int> _idByActor = new Dictionary<GameObject, int>();
 
-        private FlapAnimation _currentFlap;
-        private readonly Queue<FlapAnimation> _flapQueue = new Queue<FlapAnimation>();
+        FlapAnimation _currentFlap;
+        Queue<FlapAnimation> _flapQueue = new Queue<FlapAnimation>();
 
-        private int _nextDiskID;
-        private int _selectedDiskID;
+        int _nextDiskID;
+        int _selectedDiskID;
 
-        private int _currentPlayer;
+        int _currentPlayer;
 
-        private GameObject _diskGhost;
-        private Camera _camera;
+        GameObject _diskGhost;
+        Camera _camera;
 
-        private TcpListener _server;
-        private TcpClient _connectedClient;
-        private NetworkStream _networkStream;
+        TcpListener _server;
+        TcpClient _connectedClient;
+        NetworkStream _networkStream;
 
-        private TcpClient _client;
-        private DiskJson[] _diskJsons;
-        private Dictionary<string, Texture2D> _textureLookup;
+        TcpClient _client;
+        DiskJson[] _diskJsons;
+        Dictionary<string, Texture2D> _textureLookup;
 
-        private IEnumerator Start()
+        bool _doUnityUpdate;
+        bool _networkListening;
+
+        IEnumerator Start()
         {
             _diskJsons = AssetLoading.LoadDisks();
             _textureLookup = AssetLoading.LoadTextures();
@@ -55,7 +58,7 @@ namespace DiskWars
             {
                 case NetworkMode.None:
                 {
-                    yield return StartSingleplayer();
+                    StartSingleplayer();
                 } break;
                 case NetworkMode.Host:
                 {
@@ -66,16 +69,41 @@ namespace DiskWars
                     StartClient();
                 } break;
             }
+
+            _doUnityUpdate = true;
         }
 
-        private void OnDestroy()
+        void Update()
         {
-            _server = null;
-            _connectedClient = null;
-            _client = null;
+            if (_doUnityUpdate == false)
+            {
+                return;
+            }
+
+            switch (MainMenu.NetworkMode)
+            {
+                case NetworkMode.None:
+                {
+                    SingleplayerUpdate();
+                } break;
+                case NetworkMode.Host:
+                {
+                    ServerUpdate();
+                } break;
+                case NetworkMode.Client:
+                {
+                    ClientUpdate();
+                } break;
+            }
         }
 
-        private IEnumerator StartServer()
+        void OnDestroy()
+        {
+            _doUnityUpdate = false;
+            _networkListening = false;
+        }
+
+        IEnumerator StartServer()
         {
             _server = new TcpListener(IPAddress.Loopback, 7777);
 
@@ -98,23 +126,127 @@ namespace DiskWars
             Debug.Log("connected!");
 
             NetworkMessage message = new NetworkMessage();
+
             message.type = NetworkMessage.Type.Chat;
             message.chat.message = "hello!";
-
             SendToClient(message);
 
-            message.chat.message = "bye!";
-
+            message.chat.message = "let's spawn stuff";
             SendToClient(message);
 
             SpawnDisk(_diskJsons[0], _textureLookup, 1);
-
             message.type = NetworkMessage.Type.DiskSpawn;
             message.diskSpawn.player = 1;
             SendToClient(message);
         }
 
-        private void SendToClient(NetworkMessage message)
+        void ServerUpdate()
+        {
+
+        }
+
+        void ClientUpdate()
+        {
+
+        }
+
+        void SingleplayerUpdate()
+        {
+            Disk selectedDisk = null;
+
+            if (_selectedDiskID >= 0)
+            {
+                selectedDisk = _disks[_selectedDiskID];
+            }
+
+            Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
+            bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
+
+            if (hitSomething && selectedDisk != null)
+            {
+                Vector3 mousePosition = hit.point;
+                Vector3 targetPoint = mousePosition;
+                targetPoint.y = selectedDisk.Position.y;
+                Vector3 diskLocation = selectedDisk.Position;
+                Vector3 direction = targetPoint - diskLocation;
+                Vector3 movement = direction.normalized * selectedDisk.Diameter;
+                Vector3 targetLocation = diskLocation + movement;
+                targetLocation.y = Disk.THICKNESS / 2f;
+
+                while (HasCollisions(selectedDisk, targetLocation))
+                {
+                    targetLocation.y += Disk.THICKNESS;
+                }
+
+                _diskGhost.transform.position = targetLocation;
+            }
+
+            if (Input.GetMouseButton(0))
+            {
+                if (hitSomething && hit.collider.CompareTag("Disk"))
+                {
+                    GameObject diskActor = hit.collider.gameObject;
+                    int diskID = _idByActor[diskActor];
+                    Disk disk = _disks[diskID];
+
+                    if (disk.Player == _currentPlayer)
+                    {
+                        _selectedDiskID = diskID;
+                        _diskGhost.transform.localScale = diskActor.transform.localScale;
+
+                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
+                        ghostColor.a = ghostMaterial.color.a;
+                        ghostMaterial.color = ghostColor;
+                    }
+                }
+                else
+                {
+                    _selectedDiskID = -1;
+                    _diskGhost.transform.localScale = Vector3.zero;
+                }
+            }
+            else if (Input.GetMouseButtonDown(1))
+            {
+                if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
+                {
+                    selectedDisk.RemainingMoves -= 1;
+                    selectedDisk.Position = _diskGhost.transform.position;
+
+                    Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+                    Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+                    ghostColor.a = ghostMaterial.color.a;
+                    ghostMaterial.color = ghostColor;
+
+                    GameObject actor = _actorByID[selectedDisk.ID];
+                    FlapAnimation flapAnimation = new FlapAnimation
+                    {
+                        Actor = actor,
+                        TargetLocation = selectedDisk.Position
+                    };
+
+                    _flapQueue.Enqueue(flapAnimation);
+                }
+            }
+
+            if (_flapQueue.Any() && _currentFlap == null)
+            {
+                FlapAnimation flap = _flapQueue.Dequeue();
+                StartCoroutine(PerformFlap(flap));
+            }
+        }
+
+        void StartClient()
+        {
+            _client = new TcpClient();
+            _client.Connect(IPAddress.Loopback, 7777);
+            Debug.Log("connected");
+
+            _networkListening = true;
+            ReadServerMessagesAsync();
+        }
+
+        void SendToClient(NetworkMessage message)
         {
             StreamWriter writer = new StreamWriter(_networkStream);
             string json = JsonUtility.ToJson(message);
@@ -122,47 +254,11 @@ namespace DiskWars
             writer.Flush();
         }
 
-        [Serializable]
-        private struct ChatMessage
-        {
-            public string message;
-        }
-
-        [Serializable]
-        private struct DiskSpawnMessage
-        {
-            public int player;
-        }
-
-        [Serializable]
-        private struct NetworkMessage
-        {
-            public enum Type
-            {
-                Unknown,
-                Chat,
-                DiskSpawn
-            }
-
-            public Type type;
-            public ChatMessage chat;
-            public DiskSpawnMessage diskSpawn;
-        }
-
-        private void StartClient()
-        {
-            _client = new TcpClient();
-            _client.Connect(IPAddress.Loopback, 7777);
-            Debug.Log("connected");
-
-            ReadServerMessagesAsync();
-        }
-
-        private async void ReadServerMessagesAsync()
+        async void ReadServerMessagesAsync()
         {
             StreamReader reader = new StreamReader(_client.GetStream());
 
-            while (_client != null)
+            while (_networkListening)
             {
                 Task<string> readTask = reader.ReadLineAsync();
                 await readTask;
@@ -190,7 +286,7 @@ namespace DiskWars
             }
         }
 
-        private IEnumerator StartSingleplayer()
+        void StartSingleplayer()
         {
             bool player1 = true;
             foreach (DiskJson diskJson in _diskJsons)
@@ -208,97 +304,9 @@ namespace DiskWars
             _currentPlayer = 1;
             _currentPlayerDisplay.text = $"Player {_currentPlayer}'s turn";
             _endTurnButton.onClick.AddListener(EndTurn);
-
-            while (true)
-            {
-                Disk selectedDisk = null;
-
-                if (_selectedDiskID >= 0)
-                {
-                    selectedDisk = _disks[_selectedDiskID];
-                }
-
-                Ray mouseRay = _camera.ScreenPointToRay(Input.mousePosition);
-                bool hitSomething = Physics.Raycast(mouseRay, out RaycastHit hit);
-
-                if (hitSomething && selectedDisk != null)
-                {
-                    Vector3 mousePosition = hit.point;
-                    Vector3 targetPoint = mousePosition;
-                    targetPoint.y = selectedDisk.Position.y;
-                    Vector3 diskLocation = selectedDisk.Position;
-                    Vector3 direction = targetPoint - diskLocation;
-                    Vector3 movement = direction.normalized * selectedDisk.Diameter;
-                    Vector3 targetLocation = diskLocation + movement;
-                    targetLocation.y = Disk.THICKNESS / 2f;
-
-                    while (HasCollisions(selectedDisk, targetLocation))
-                    {
-                        targetLocation.y += Disk.THICKNESS;
-                    }
-
-                    _diskGhost.transform.position = targetLocation;
-                }
-
-                if (Input.GetMouseButton(0))
-                {
-                    if (hitSomething && hit.collider.CompareTag("Disk"))
-                    {
-                        GameObject diskActor = hit.collider.gameObject;
-                        int diskID = _idByActor[diskActor];
-                        Disk disk = _disks[diskID];
-
-                        if (disk.Player == _currentPlayer)
-                        {
-                            _selectedDiskID = diskID;
-                            _diskGhost.transform.localScale = diskActor.transform.localScale;
-
-                            Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                            Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
-                            ghostColor.a = ghostMaterial.color.a;
-                            ghostMaterial.color = ghostColor;
-                        }
-                    }
-                    else
-                    {
-                        _selectedDiskID = -1;
-                        _diskGhost.transform.localScale = Vector3.zero;
-                    }
-                }
-                else if (Input.GetMouseButtonDown(1))
-                {
-                    if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
-                    {
-                        selectedDisk.RemainingMoves -= 1;
-                        selectedDisk.Position = _diskGhost.transform.position;
-
-                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                        Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
-                        ghostColor.a = ghostMaterial.color.a;
-                        ghostMaterial.color = ghostColor;
-
-                        GameObject actor = _actorByID[selectedDisk.ID];
-                        FlapAnimation flapAnimation = new FlapAnimation
-                        {
-                            Actor = actor,
-                            TargetLocation = selectedDisk.Position
-                        };
-
-                        _flapQueue.Enqueue(flapAnimation);
-                    }
-                }
-
-                if (_flapQueue.Any() && _currentFlap == null)
-                {
-                    FlapAnimation flap = _flapQueue.Dequeue();
-                    StartCoroutine(PerformFlap(flap));
-                }
-
-                yield return null;
-            }
         }
 
-        private void EndTurn()
+        void EndTurn()
         {
             _currentPlayer++;
 
@@ -315,7 +323,7 @@ namespace DiskWars
             }
         }
 
-        private IEnumerator PerformFlap(FlapAnimation flap)
+        IEnumerator PerformFlap(FlapAnimation flap)
         {
             _currentFlap = flap;
 
@@ -337,7 +345,7 @@ namespace DiskWars
             _currentFlap = null;
         }
 
-        private void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup, int player)
+        void SpawnDisk(DiskJson json, Dictionary<string, Texture2D> textureLookup, int player)
         {
             Vector3 position = Vector3.zero;
 
@@ -387,7 +395,7 @@ namespace DiskWars
             _actorByID.Add(disk.ID, actor);
         }
 
-        private bool HasCollisions(Disk disk, Vector3 overridePosition)
+        bool HasCollisions(Disk disk, Vector3 overridePosition)
         {
             foreach (Disk other in _disks.Where(other => disk.ID != other.ID))
             {
@@ -417,7 +425,7 @@ namespace DiskWars
             return false;
         }
 
-        private class FlapAnimation
+        class FlapAnimation
         {
             public GameObject Actor;
             public Vector3 TargetLocation;
@@ -429,5 +437,32 @@ namespace DiskWars
         None,
         Host,
         Client
+    }
+
+    [Serializable]
+    struct ChatMessage
+    {
+        public string message;
+    }
+
+    [Serializable]
+    struct DiskSpawnMessage
+    {
+        public int player;
+    }
+
+    [Serializable]
+    struct NetworkMessage
+    {
+        public enum Type
+        {
+            Unknown,
+            Chat,
+            DiskSpawn
+        }
+
+        public Type type;
+        public ChatMessage chat;
+        public DiskSpawnMessage diskSpawn;
     }
 }
