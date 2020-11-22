@@ -230,6 +230,7 @@ namespace DiskWars
                     message.type = NetworkMessage.Type.DiskMove;
                     message.diskMove.diskID = selectedDisk.ID;
                     message.diskMove.targetLocation = selectedDisk.Position;
+                    message.diskMove.remainingMoves = selectedDisk.RemainingMoves;
                     SendNetworkMessage(message);
                 }
             }
@@ -251,8 +252,6 @@ namespace DiskWars
             {
                 if (selectedDisk != null && selectedDisk.RemainingMoves > 0)
                 {
-                    selectedDisk.RemainingMoves -= 1;
-
                     Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
                     Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
                     ghostColor.a = ghostMaterial.color.a;
@@ -324,7 +323,20 @@ namespace DiskWars
                 selectedDisk = _disks[_selectedDiskID];
             }
 
-            if (hitSomething && selectedDisk != null)
+            if (selectedDisk == null)
+            {
+                _diskGhost.transform.localScale = Vector3.zero;
+                return;
+            }
+
+            _diskGhost.transform.localScale = _actorByID[_selectedDiskID].transform.localScale;
+
+            Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
+            Color ghostColor = selectedDisk.RemainingMoves > 0 ? Color.blue : Color.red;
+            ghostColor.a = ghostMaterial.color.a;
+            ghostMaterial.color = ghostColor;
+
+            if (hitSomething)
             {
                 Vector3 mousePosition = hitPoint;
                 Vector3 targetPoint = mousePosition;
@@ -356,18 +368,11 @@ namespace DiskWars
                     if (disk.Player == _currentPlayer)
                     {
                         _selectedDiskID = diskID;
-                        _diskGhost.transform.localScale = hitDiskActor.transform.localScale;
-
-                        Material ghostMaterial = _diskGhost.GetComponent<Renderer>().material;
-                        Color ghostColor = disk.RemainingMoves > 0 ? Color.blue : Color.red;
-                        ghostColor.a = ghostMaterial.color.a;
-                        ghostMaterial.color = ghostColor;
                     }
                 }
                 else
                 {
                     _selectedDiskID = -1;
-                    _diskGhost.transform.localScale = Vector3.zero;
                 }
             }
 
@@ -421,6 +426,8 @@ namespace DiskWars
                     case NetworkMessage.Type.DiskMove:
                         Disk disk = _disks[message.diskMove.diskID];
                         disk.Position = message.diskMove.targetLocation;
+                        disk.RemainingMoves -= 1;
+                        message.diskMove.remainingMoves = disk.RemainingMoves;
                         GameObject actor = _actorByID[disk.ID];
                         FlapAnimation flapAnimation = new FlapAnimation
                         {
@@ -470,6 +477,7 @@ namespace DiskWars
                     case NetworkMessage.Type.DiskMove:
                         Disk disk = _disks[message.diskMove.diskID];
                         disk.Position = message.diskMove.targetLocation;
+                        disk.RemainingMoves = message.diskMove.remainingMoves;
                         GameObject actor = _actorByID[disk.ID];
                         FlapAnimation flapAnimation = new FlapAnimation
                         {
@@ -688,6 +696,7 @@ namespace DiskWars
     {
         public int diskID;
         public Vector3 targetLocation;
+        public int remainingMoves;
     }
 
     [Serializable]
