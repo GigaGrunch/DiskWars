@@ -571,9 +571,21 @@ namespace DiskWars
             Vector3 direction = (targetLocation - actor.transform.position).normalized;
             Vector3 rotationAxis = new Vector3(direction.z, 0f, -direction.x);
 
-            for (int i = 0; i < 90; i++)
+            float turnedDegrees = 0f;
+            float degreesPerSecond = 360f;
+            while (true)
             {
-                actor.transform.RotateAround(point: rotationPoint, axis: rotationAxis, 2f);
+                float degreesUpdate = Time.deltaTime * degreesPerSecond;
+                float degreesLeft = 180f - turnedDegrees;
+
+                if (degreesLeft < degreesUpdate)
+                {
+                    actor.transform.RotateAround(point: rotationPoint, axis: rotationAxis, degreesLeft);
+                    break;
+                }
+
+                turnedDegrees += degreesUpdate;
+                actor.transform.RotateAround(point: rotationPoint, axis: rotationAxis, degreesUpdate);
                 yield return null;
             }
 
